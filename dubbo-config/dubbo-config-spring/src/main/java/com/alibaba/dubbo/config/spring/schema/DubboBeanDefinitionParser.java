@@ -71,7 +71,17 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
     }
 
     /**
-     *  解析Dubbo自定义标签，生成一个对应的BeanDefinition
+     *  解析Dubbo自定义标签，生成对应的BeanDefinition
+     *
+     * Q：这里有个问题当解析完并实例化各个标签为BeanDefinition后，Dubbo是如何注册或发现标签中的服务的？
+     * A：Spring在实例化Bean之后会调用两个方法来做一些其他操作，如下：
+     *      1. 实现BeanPostProcessor后置处理器，在Bean初始化前后执行相关操作
+     *      2. Bean实现InitializingBean接口(在Spring初始化Bean的时候，如果该Bean实现了InitializingBean接口，系统会调用afterPropertieSet()方法)
+     *
+     *    在回过头看DubboNamespaceHandler中，Dubbo的服务提供者、消费者对应的beanClass分别为：ServiceBean、ReferenceBean，看一下这两个类继承关系
+     *      ServiceBean<T> extends ServiceConfig<T> implements InitializingBean, DisposableBean, ApplicationContextAware, BeanNameAware, ApplicationEventPublisherAware
+     *      ReferenceBean<T> implements FactoryBean<T>,ApplicationContextAware, BeanClassLoaderAware, BeanNameAware, InitializingBean, DisposableBean
+     *    两者都继承了InitializingBean，如上面的猜想。但是ReferenceBean实现了FactoryBean为什么呢？因为ReferenceBean是对应的消费者，返回的对象并不是ReferenceBean,而是要返回ref指定的代理类来执行业务操作
      * @param element
      * @param parserContext
      * @param beanClass
