@@ -309,6 +309,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 throw new IllegalStateException("The stub implementation class " + stubClass.getName() + " not implement interface " + interfaceName);
             }
         }
+        // ServiceBean的application、registry、protocol是否为空，并从系统属性（优先）、资源文件中填充其属性
         checkApplication();
         checkRegistry();
         checkProtocol();
@@ -317,6 +318,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (path == null || path.length() == 0) {
             path = interfaceName;
         }
+        // 暴露服务
         doExportUrls();
         ProviderModel providerModel = new ProviderModel(getUniqueServiceName(), this, ref);
         ApplicationModel.initProviderModel(getUniqueServiceName(), providerModel);
@@ -356,7 +358,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls() {
+        // 根据注册中心，将要暴露的服务全部转换为URL对象
         List<URL> registryURLs = loadRegistries(true);
+        // 遍历协议，根据协议向每一个注册中心注册
         for (ProtocolConfig protocolConfig : protocols) {
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
@@ -482,6 +486,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
         String scope = url.getParameter(Constants.SCOPE_KEY);
         // don't export when none is configured
+        // scope标签配置为none值时，不保留服务
         if (!Constants.SCOPE_NONE.toString().equalsIgnoreCase(scope)) {
 
             // export to local if the config is not remote (export to remote only when config is remote)
@@ -693,6 +698,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         return port;
     }
 
+    /**
+     * <dubbo:service />标签的provider属性为null，则初始化一个默认值并填充属性值
+     */
     private void checkDefault() {
         if (provider == null) {
             provider = new ProviderConfig();
