@@ -84,6 +84,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private String interfaceName;
     private Class<?> interfaceClass;
     // reference to interface impl
+    /**
+     * ref属性引用的类名称
+     */
     private T ref;
     // service name
     private String path;
@@ -270,6 +273,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 monitor = application.getMonitor();
             }
         }
+        // ref是GenericService则表示是泛型化实现
         if (ref instanceof GenericService) {
             interfaceClass = GenericService.class;
             if (StringUtils.isEmpty(generic)) {
@@ -286,6 +290,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             checkRef();
             generic = Boolean.FALSE.toString();
         }
+        // 本地存根,什么是本地存根参考官网即可，local机制已经废弃，被stub属性所替换
         if (local != null) {
             if ("true".equals(local)) {
                 local = interfaceName + "Local";
@@ -314,7 +319,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 throw new IllegalStateException("The stub implementation class " + stubClass.getName() + " not implement interface " + interfaceName);
             }
         }
-        // ServiceBean的application、registry、protocol是否为空，并从系统属性（优先）、资源文件中填充其属性
+        // 对ServiceBean的application、registry、protocol进行校验
+        // 如果为空则从相关地方加载默认属性
         checkApplication();
         checkRegistry();
         checkProtocol();
@@ -325,6 +331,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
         // 暴露服务
         doExportUrls();
+        // 构造一个ProviderModel并注册到ApplicationModel中
         ProviderModel providerModel = new ProviderModel(getUniqueServiceName(), this, ref);
         ApplicationModel.initProviderModel(getUniqueServiceName(), providerModel);
     }
@@ -361,6 +368,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         unexported = true;
     }
 
+    /**
+     * 进行服务的暴露
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls() {
         // 根据注册中心，将要暴露的服务全部转换为URL对象
