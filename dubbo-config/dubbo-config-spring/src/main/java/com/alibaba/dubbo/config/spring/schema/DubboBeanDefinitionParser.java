@@ -62,7 +62,13 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
 
     private static final Logger logger = LoggerFactory.getLogger(DubboBeanDefinitionParser.class);
     private static final Pattern GROUP_AND_VERION = Pattern.compile("^[\\-.0-9_a-zA-Z]+(\\:[\\-.0-9_a-zA-Z]+)?$");
+    /**
+     * 解析后的对象类型
+     */
     private final Class<?> beanClass;
+    /**
+     * 是否是必须的
+     */
     private final boolean required;
 
     public DubboBeanDefinitionParser(Class<?> beanClass, boolean required) {
@@ -82,7 +88,7 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
      *      ServiceBean<T> extends ServiceConfig<T> implements InitializingBean, DisposableBean, ApplicationContextAware, BeanNameAware, ApplicationEventPublisherAware
      *      ReferenceBean<T> implements FactoryBean<T>,ApplicationContextAware, BeanClassLoaderAware, BeanNameAware, InitializingBean, DisposableBean
      *    两者都继承了InitializingBean，如上面的猜想。但是ReferenceBean实现了FactoryBean为什么呢？因为ReferenceBean是对应的消费者，返回的对象并不是ReferenceBean,而是要返回ref指定的代理类来执行业务操作
-     * @param element
+     * @param element 要解析的标签
      * @param parserContext
      * @param beanClass
      * @param required

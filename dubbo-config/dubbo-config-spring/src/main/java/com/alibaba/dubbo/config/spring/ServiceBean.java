@@ -88,6 +88,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
         if (applicationContext != null) {
             SPRING_CONTEXT = applicationContext;
             try {
+                // 添加事件监听器
                 Method method = applicationContext.getClass().getMethod("addApplicationListener", new Class<?>[]{ApplicationListener.class}); // backward compatibility to spring 2.0.1
                 method.invoke(applicationContext, new Object[]{this});
                 supportedApplicationListener = true;
@@ -121,6 +122,10 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
         return service;
     }
 
+    /**
+     * 监听事件后发布自己
+     * @param event
+     */
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
         if (isDelay() && !isExported() && !isUnexported()) {

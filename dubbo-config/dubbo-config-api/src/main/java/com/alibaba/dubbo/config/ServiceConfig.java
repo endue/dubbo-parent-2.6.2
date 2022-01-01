@@ -89,6 +89,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private String path;
     // method configuration
     private List<MethodConfig> methods;
+    /**
+     * 要暴露的服务相关配置信息
+     */
     private ProviderConfig provider;
     private transient volatile boolean exported;
 
@@ -231,7 +234,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (interfaceName == null || interfaceName.length() == 0) {
             throw new IllegalStateException("<dubbo:service interface=\"\" /> interface not allow null!");
         }
+        // 为provider设置系统属性或配置文件中的值
         checkDefault();
+
         if (provider != null) {
             if (application == null) {
                 application = provider.getApplication();
@@ -699,12 +704,13 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     }
 
     /**
-     * <dubbo:service />标签的provider属性为null，则初始化一个默认值并填充属性值
+     * <dubbo:service />标签的provider属性为空，则初始化一个并填充默认属性值
      */
     private void checkDefault() {
         if (provider == null) {
             provider = new ProviderConfig();
         }
+        // 为provider填充系统属性或配置文件中的属性值
         appendProperties(provider);
     }
 

@@ -98,36 +98,52 @@ public abstract class AbstractConfig implements Serializable {
         return value;
     }
 
+    /**
+     * 为参数config中的相关属性设置值
+     * 加载顺序：System.getProperty --> dubbo.properties.file --> dubbo.properties
+     * @param config
+     */
     protected static void appendProperties(AbstractConfig config) {
         if (config == null) {
             return;
         }
+        // 组装前缀，可以认为是某个标签。如config为com.alibaba.dubbo.config.ProviderConfig，则结果为dubbo.provider
         String prefix = "dubbo." + getTagName(config.getClass()) + ".";
+
         Method[] methods = config.getClass().getMethods();
         for (Method method : methods) {
             try {
                 String name = method.getName();
                 if (name.length() > 3 && name.startsWith("set") && Modifier.isPublic(method.getModifiers())
                         && method.getParameterTypes().length == 1 && isPrimitive(method.getParameterTypes()[0])) {
+                    // 从set方法中截取属性名称并转换为配置名称
+                    // 如：name为setPort，则property为port、name为setUserName，则property为user.name
                     String property = StringUtils.camelToSplitName(name.substring(3, 4).toLowerCase() + name.substring(4), ".");
 
+                    /*---------------1. 从系统属性加载对应属性值---------------*/
                     String value = null;
                     if (config.getId() != null && config.getId().length() > 0) {
+                        // 根据参数config组装配置名称：dubbo.provider.xx.属性名称，xx表示配置的id
                         String pn = prefix + config.getId() + "." + property;
+                        // 从系统属性中加载参数值
                         value = System.getProperty(pn);
                         if (!StringUtils.isBlank(value)) {
                             logger.info("Use System Property " + pn + " to config dubbo");
                         }
                     }
                     if (value == null || value.length() == 0) {
+                        // 根据参数config组装配置名称：dubbo.provider.属性名称
                         String pn = prefix + property;
+                        // 从系统属性中加载属性值
                         value = System.getProperty(pn);
                         if (!StringUtils.isBlank(value)) {
                             logger.info("Use System Property " + pn + " to config dubbo");
                         }
                     }
+
                     if (value == null || value.length() == 0) {
                         Method getter;
+                        // 获取属性值的get方法
                         try {
                             getter = config.getClass().getMethod("get" + name.substring(3), new Class<?>[0]);
                         } catch (NoSuchMethodException e) {
@@ -139,6 +155,7 @@ public abstract class AbstractConfig implements Serializable {
                         }
                         if (getter != null) {
                             if (getter.invoke(config, new Object[0]) == null) {
+                                /*---------------2. 从配置文件中加载对应属性值，配置文件顺序dubbo.properties.file -> dubbo.properties---------------*/
                                 if (config.getId() != null && config.getId().length() > 0) {
                                     value = ConfigUtils.getProperty(prefix + config.getId() + "." + property);
                                 }
@@ -155,6 +172,7 @@ public abstract class AbstractConfig implements Serializable {
                             }
                         }
                     }
+                    // 最后赋值
                     if (value != null && value.length() > 0) {
                         method.invoke(config, new Object[]{convertPrimitive(method.getParameterTypes()[0], value)});
                     }
@@ -166,7 +184,10 @@ public abstract class AbstractConfig implements Serializable {
     }
 
     private static String getTagName(Class<?> cls) {
+        // 获取参数cls表示的类名称
+        // 如cls为com.alibaba.dubbo.config.ProviderConfig，则结果为ProviderConfig
         String tag = cls.getSimpleName();
+        // 如果以指定名称结尾，则截取指定名称前面的字符
         for (String suffix : SUFFIXES) {
             if (tag.endsWith(suffix)) {
                 tag = tag.substring(0, tag.length() - suffix.length());

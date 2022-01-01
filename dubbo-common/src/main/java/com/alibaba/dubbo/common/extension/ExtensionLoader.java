@@ -44,6 +44,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
 /**
+ * 加载dubbo扩展
  * Load dubbo extensions
  * <ul>
  * <li>auto inject dependency extension </li>
@@ -68,6 +69,10 @@ public class ExtensionLoader<T> {
 
     private static final Pattern NAME_SEPARATOR = Pattern.compile("\\s*[,]+\\s*");
 
+    /**
+     * 存储扩展类加载器
+     * key是扩展类，value是加载器
+     */
     private static final ConcurrentMap<Class<?>, ExtensionLoader<?>> EXTENSION_LOADERS = new ConcurrentHashMap<Class<?>, ExtensionLoader<?>>();
 
     private static final ConcurrentMap<Class<?>, Object> EXTENSION_INSTANCES = new ConcurrentHashMap<Class<?>, Object>();
@@ -86,6 +91,9 @@ public class ExtensionLoader<T> {
     private final ConcurrentMap<String, Holder<Object>> cachedInstances = new ConcurrentHashMap<String, Holder<Object>>();
     private final Holder<Object> cachedAdaptiveInstance = new Holder<Object>();
     private volatile Class<?> cachedAdaptiveClass = null;
+    /**
+     * SPI注解上的默认扩展名
+     */
     private String cachedDefaultName;
     private volatile Throwable createAdaptiveInstanceError;
 
@@ -102,6 +110,12 @@ public class ExtensionLoader<T> {
         return type.isAnnotationPresent(SPI.class);
     }
 
+    /**
+     * 获取扩展类加载器，没有就创建一个并缓存到EXTENSION_LOADERS中
+     * @param type
+     * @param <T>
+     * @return
+     */
     @SuppressWarnings("unchecked")
     public static <T> ExtensionLoader<T> getExtensionLoader(Class<T> type) {
         if (type == null)
@@ -432,6 +446,11 @@ public class ExtensionLoader<T> {
         }
     }
 
+    /**
+     * 获取自适应的扩展类
+     * 这里以{@link com.alibaba.dubbo.rpc.Protocol}为例
+     * @return
+     */
     @SuppressWarnings("unchecked")
     public T getAdaptiveExtension() {
         Object instance = cachedAdaptiveInstance.get();
@@ -441,6 +460,7 @@ public class ExtensionLoader<T> {
                     instance = cachedAdaptiveInstance.get();
                     if (instance == null) {
                         try {
+                            // 创建自适应扩展类
                             instance = createAdaptiveExtension();
                             cachedAdaptiveInstance.set(instance);
                         } catch (Throwable t) {
@@ -560,10 +580,16 @@ public class ExtensionLoader<T> {
         return classes;
     }
 
+    /**
+     * 加载扩展类
+     * @return
+     */
     // synchronized in getExtensionClasses
     private Map<String, Class<?>> loadExtensionClasses() {
+        // 获取当ExtensionLoader所属的扩展类上的SPI注解
         final SPI defaultAnnotation = type.getAnnotation(SPI.class);
         if (defaultAnnotation != null) {
+            // 获取SPI注解上的扩展名
             String value = defaultAnnotation.value();
             if ((value = value.trim()).length() > 0) {
                 String[] names = NAME_SEPARATOR.split(value);
@@ -574,7 +600,10 @@ public class ExtensionLoader<T> {
                 if (names.length == 1) cachedDefaultName = names[0];
             }
         }
-
+        // 加载扩展类的实现类
+        // -> "META-INF/dubbo/internal/"
+        // -> "META-INF/dubbo/"
+        // -> "META-INF/services/"
         Map<String, Class<?>> extensionClasses = new HashMap<String, Class<?>>();
         loadDirectory(extensionClasses, DUBBO_INTERNAL_DIRECTORY);
         loadDirectory(extensionClasses, DUBBO_DIRECTORY);
@@ -583,6 +612,7 @@ public class ExtensionLoader<T> {
     }
 
     private void loadDirectory(Map<String, Class<?>> extensionClasses, String dir) {
+        // dir是文件目录，type获取文件名称，SPI那么文件名称就是完整类名称
         String fileName = dir + type.getName();
         try {
             Enumeration<java.net.URL> urls;
@@ -716,6 +746,10 @@ public class ExtensionLoader<T> {
         return extension.value();
     }
 
+    /**
+     * 创建自适应扩展类
+     * @return
+     */
     @SuppressWarnings("unchecked")
     private T createAdaptiveExtension() {
         try {
@@ -725,6 +759,10 @@ public class ExtensionLoader<T> {
         }
     }
 
+    /**
+     * 获取自适应扩展类的Class
+     * @return
+     */
     private Class<?> getAdaptiveExtensionClass() {
         getExtensionClasses();
         if (cachedAdaptiveClass != null) {
