@@ -57,6 +57,9 @@ public abstract class AbstractServiceConfig extends AbstractInterfaceConfig {
     protected Boolean dynamic;
 
     // whether to use token
+    /**
+     * 是否开启令牌验证，为空表示不开启，如果为true，表示随机生成动态令牌
+     */
     protected String token;
 
     // access log

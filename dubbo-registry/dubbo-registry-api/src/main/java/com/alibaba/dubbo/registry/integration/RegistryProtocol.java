@@ -128,12 +128,17 @@ public class RegistryProtocol implements Protocol {
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
         //export invoker
+        // 启动服务提供者服务，监听指定端口，准备服务消费者的请求，
+        // 这里其实就是从WrapperInvoker中的url(注册中心url)中提取export属性，描述服务提供者的url，然后启动服务提供者
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker);
 
+        // 获取真实注册中心的URL
         URL registryUrl = getRegistryUrl(originInvoker);
 
         //registry provider
+        // 根据注册中心URL，从注册中心工厂中获取指定的注册中心实现类：zookeeper注册中心的实现类为：ZookeeperRegistry
         final Registry registry = getRegistry(originInvoker);
+        // 获取服务提供者URL中的register属性，如果为true,则调用注册中心的register()方法向注册中心注册服务
         final URL registedProviderUrl = getRegistedProviderUrl(originInvoker);
 
         //to judge to delay publish whether or not

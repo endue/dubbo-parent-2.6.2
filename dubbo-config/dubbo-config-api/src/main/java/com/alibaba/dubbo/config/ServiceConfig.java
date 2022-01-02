@@ -81,11 +81,17 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private final List<URL> urls = new ArrayList<URL>();
     private final List<Exporter<?>> exporters = new ArrayList<Exporter<?>>();
     // interface type
+    /**
+     * 暴露的接口名
+     */
     private String interfaceName;
+    /**
+     * 暴露的接口类全限定名
+     */
     private Class<?> interfaceClass;
     // reference to interface impl
     /**
-     * ref属性引用的类名称
+     * ref属性引用的实现类名称
      */
     private T ref;
     // service name
@@ -100,6 +106,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     private transient volatile boolean unexported;
 
+    /**
+     * 是否泛型化接口
+     */
     private volatile String generic;
 
     public ServiceConfig() {
@@ -381,7 +390,13 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
     }
 
+    /**
+     * 根据协议注册URL
+     * @param protocolConfig
+     * @param registryURLs
+     */
     private void doExportUrlsFor1Protocol(ProtocolConfig protocolConfig, List<URL> registryURLs) {
+        // 默认dubbo协议
         String name = protocolConfig.getName();
         if (name == null || name.length() == 0) {
             name = "dubbo";
@@ -399,6 +414,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         appendParameters(map, provider, Constants.DEFAULT_KEY);
         appendParameters(map, protocolConfig);
         appendParameters(map, this);
+        // 处理dubbo:method标签及其子标签
         if (methods != null && !methods.isEmpty()) {
             for (MethodConfig method : methods) {
                 appendParameters(map, method, method.getName());
@@ -455,6 +471,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             } // end of methods for
         }
 
+        // 泛型化接口处理
         if (ProtocolUtils.isGeneric(generic)) {
             map.put(Constants.GENERIC_KEY, generic);
             map.put(Constants.METHODS_KEY, Constants.ANY_VALUE);
@@ -472,6 +489,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 map.put(Constants.METHODS_KEY, StringUtils.join(new HashSet<String>(Arrays.asList(methods)), ","));
             }
         }
+        // 是否开启令牌验证
         if (!ConfigUtils.isEmpty(token)) {
             if (ConfigUtils.isDefault(token)) {
                 map.put(Constants.TOKEN_KEY, UUID.randomUUID().toString());
@@ -479,6 +497,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 map.put(Constants.TOKEN_KEY, token);
             }
         }
+        // 注册使用的协议为本地协议，则标识不需要向注册中心注册。在map中存储键为notify,值为false
         if (Constants.LOCAL_PROTOCOL.equals(protocolConfig.getName())) {
             protocolConfig.setRegister(false);
             map.put("notify", "false");
@@ -489,8 +508,10 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             contextPath = provider.getContextpath();
         }
 
+        // 解析服务提供者的IP和端口
         String host = this.findConfigedHosts(protocolConfig, registryURLs, map);
         Integer port = this.findConfigedPorts(protocolConfig, name, map);
+        // 协议名称 + IP + 端口 + contextPath + 属性配置 = URL
         URL url = new URL(name, host, port, (contextPath == null || contextPath.length() == 0 ? "" : contextPath + "/") + path, map);
 
         if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
@@ -499,9 +520,10 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                     .getExtension(url.getProtocol()).getConfigurator(url).configure(url);
         }
 
+        // 获取dubbo:service标签的scope属性值：none(不暴露)、local(本地)、remote(远程)
         String scope = url.getParameter(Constants.SCOPE_KEY);
         // don't export when none is configured
-        // scope标签配置为none值时，不保留服务
+        // scope标签配置为none值时，不暴露服务
         if (!Constants.SCOPE_NONE.toString().equalsIgnoreCase(scope)) {
 
             // export to local if the config is not remote (export to remote only when config is remote)
@@ -515,7 +537,10 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 }
                 if (registryURLs != null && !registryURLs.isEmpty()) {
                     for (URL registryURL : registryURLs) {
+                        // dubbo:service的dynamic属性未配置，尝试取dubbo:registry的dynamic属性。
+                        // 该属性的作用是否启用动态注册，如果设置为false，服务注册后，其状态显示为disable，需要人工启用，当服务不可用时，也不会自动移除，同样需要人工处理，此属性不要在生产环境上配置
                         url = url.addParameterIfAbsent(Constants.DYNAMIC_KEY, registryURL.getParameter(Constants.DYNAMIC_KEY));
+                        // 构建监控中心URL
                         URL monitorUrl = loadMonitor(registryURL);
                         if (monitorUrl != null) {
                             url = url.addParameterAndEncoded(Constants.MONITOR_KEY, monitorUrl.toFullString());
@@ -523,6 +548,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         if (logger.isInfoEnabled()) {
                             logger.info("Register dubbo service " + interfaceClass.getName() + " url " + url + " to registry " + registryURL);
                         }
+                        // 构建远程调用的实现类
                         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(Constants.EXPORT_KEY, url.toFullString()));
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
@@ -565,6 +591,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      * Configuration priority: environment variables -> java system properties -> host property in config file ->
      * /etc/hosts -> default network address -> first available network address
      *
+     * 解析服务提供者的IP
+     *
      * @param protocolConfig
      * @param registryURLs
      * @param map
@@ -572,21 +600,26 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      */
     private String findConfigedHosts(ProtocolConfig protocolConfig, List<URL> registryURLs, Map<String, String> map) {
         boolean anyhost = false;
-
+        /*---------1.从系统环境变量 -> 系统属性中获取服务提供者的IP---------*/
         String hostToBind = getValueFromConfig(protocolConfig, Constants.DUBBO_IP_TO_BIND);
+        // IP无效抛出异常
         if (hostToBind != null && hostToBind.length() > 0 && isInvalidLocalHost(hostToBind)) {
             throw new IllegalArgumentException("Specified invalid bind ip from property:" + Constants.DUBBO_IP_TO_BIND + ", value:" + hostToBind);
         }
 
         // if bind ip is not found in environment, keep looking up
+        // 上面依旧没有找到IP地址
         if (hostToBind == null || hostToBind.length() == 0) {
+            /*---------2. 从dubbo:protocol标签的host属性中获取服务提供者IP---------*/
             hostToBind = protocolConfig.getHost();
             if (provider != null && (hostToBind == null || hostToBind.length() == 0)) {
+                /*---------3. 从dubbo:provider标签的host属性中获取服务提供者IP---------*/
                 hostToBind = provider.getHost();
             }
             if (isInvalidLocalHost(hostToBind)) {
                 anyhost = true;
                 try {
+                    /*---------4. 从默认网卡中获取服务提供者IP---------*/
                     hostToBind = InetAddress.getLocalHost().getHostAddress();
                 } catch (UnknownHostException e) {
                     logger.warn(e.getMessage(), e);
@@ -598,6 +631,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                                 // skip multicast registry since we cannot connect to it via Socket
                                 continue;
                             }
+                            // 与注册中心建立socket连接并获取socket的地址
                             try {
                                 Socket socket = new Socket();
                                 try {
@@ -625,6 +659,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
         map.put(Constants.BIND_IP_KEY, hostToBind);
 
+        // 获取服务提供者的注册IP
         // registry ip is not used for bind ip by default
         String hostToRegistry = getValueFromConfig(protocolConfig, Constants.DUBBO_IP_TO_REGISTRY);
         if (hostToRegistry != null && hostToRegistry.length() > 0 && isInvalidLocalHost(hostToRegistry)) {
@@ -643,6 +678,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      * Register port and bind port for the provider, can be configured separately
      * Configuration priority: environment variable -> java system properties -> port property in protocol config file
      * -> protocol default port
+     *
+     * 解析服务提供者的端口
      *
      * @param protocolConfig
      * @param name
@@ -666,6 +703,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 portToBind = defaultPort;
             }
             if (portToBind == null || portToBind <= 0) {
+                // 随机端口
                 portToBind = getRandomPort(name);
                 if (portToBind == null || portToBind < 0) {
                     portToBind = getAvailablePort(defaultPort);
@@ -704,9 +742,18 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         return port;
     }
 
+    /**
+     * 从系统环境变量 -> 系统属性 中依次获取key所对应的值
+     * @param protocolConfig
+     * @param key
+     * @return
+     */
     private String getValueFromConfig(ProtocolConfig protocolConfig, String key) {
+        // 根据协议计算前置，默认dubbo协议则这里protocolPrefix为 "dubbo_"
         String protocolPrefix = protocolConfig.getName().toUpperCase() + "_";
+        // 从系统环境变量 -> 系统属性获取对应的值
         String port = ConfigUtils.getSystemProperty(protocolPrefix + key);
+        // 不存在换个key继续从系统环境变量 -> 系统属性获取
         if (port == null || port.length() == 0) {
             port = ConfigUtils.getSystemProperty(key);
         }
