@@ -66,6 +66,7 @@ public class Exchangers {
         if (handler == null) {
             throw new IllegalArgumentException("handler == null");
         }
+        // 首先根据url获取Exchanger实例，然后调用bind方法构建ExchangeServer
         url = url.addParameterIfAbsent(Constants.CODEC_KEY, "exchange");
         return getExchanger(url).bind(url, handler);
     }

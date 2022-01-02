@@ -225,9 +225,11 @@ public class DubboProtocol extends AbstractProtocol {
 
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        // 获取服务提供者URL，以协议名称，这里是dubbo://开头
         URL url = invoker.getUrl();
 
         // export service.
+        // 获取服务名称，格式：serviceGroup/serviceName:serviceVersion:port
         String key = serviceKey(url);
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
         exporterMap.put(key, exporter);
@@ -246,38 +248,57 @@ public class DubboProtocol extends AbstractProtocol {
                 stubServiceMethodsMap.put(url.getServiceKey(), stubServiceMethods);
             }
         }
-
+        // 开启服务
         openServer(url);
+        // 开启优化序列化方式
         optimizeSerialization(url);
         return exporter;
     }
 
+    /**
+     * 开启服务
+     * @param url
+     */
     private void openServer(URL url) {
         // find server.
+        // 获取服务提供者暴露的IP和端口号，格式：host + ":" + port
         String key = url.getAddress();
         //client can export a service which's only for server to invoke
         boolean isServer = url.getParameter(Constants.IS_SERVER_KEY, true);
         if (isServer) {
+            // 获取缓存的服务，
             ExchangeServer server = serverMap.get(key);
             if (server == null) {
+                // 不存在则创建
                 serverMap.put(key, createServer(url));
             } else {
                 // server supports reset, use together with override
+                // 如果服务器已经存在，用当前URL重置服务器，
+                // 因为一个Dubbo服务中，会存在多个dubbo:service标签，这些标签都会在服务提供者的同一个IP地址、端口号上暴露服务
                 server.reset(url);
             }
         }
     }
 
+    /**
+     * 创建服务
+     * @param url
+     * @return
+     */
     private ExchangeServer createServer(URL url) {
         // send readonly event when server closes, it's enabled by default
+        // 为服务提供者url增加channel.readonly.sent属性，默认为true，表示在发送请求时，是否等待将字节写入socket后再返回，默认为true
         url = url.addParameterIfAbsent(Constants.CHANNEL_READONLYEVENT_SENT_KEY, Boolean.TRUE.toString());
         // enable heartbeat by default
+        // 为服务提供者url增加heartbeat属性，表示心跳间隔时间，默认为60*1000，表示60s
         url = url.addParameterIfAbsent(Constants.HEARTBEAT_KEY, String.valueOf(Constants.DEFAULT_HEARTBEAT));
+        // 为服务提供者url增加server属性，可选值为netty,mina等等，默认为netty
         String str = url.getParameter(Constants.SERVER_KEY, Constants.DEFAULT_REMOTING_SERVER);
 
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str))
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
 
+        // 为服务提供者url增加codec属性，默认值为dubbo，协议编码方式
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
         ExchangeServer server;
         try {
