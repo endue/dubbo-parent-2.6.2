@@ -44,7 +44,7 @@ import java.util.Map;
 /**
  * ServiceFactoryBean
  *
- * 对应dubbo自定义的service标签
+ * 对应dubbo中的dubbo:service标签
  *
  * @export
  */
