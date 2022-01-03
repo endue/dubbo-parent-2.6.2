@@ -220,7 +220,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         }
         // 6. 从系统属性中获取引用接口的直连服务提供者
         // 如：<dubbo:reference id="demoService" check="false" interface="com.alibaba.dubbo.demo.DemoService"/>
-        // 则系统配置：-Dcom.alibaba.dubbo.demo.DemoService=dubbo://xxx
+        // 则系统配置为：-Dcom.alibaba.dubbo.demo.DemoService=dubbo://xxx
         String resolve = System.getProperty(interfaceName);
         String resolveFile = null;
         // 6.1 如果未指定-D属性，尝试从resolve配置文件中查找
@@ -360,53 +360,76 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         ApplicationModel.initConsumerModel(getUniqueServiceName(), consumerModel);
     }
 
+    /**
+     * 创建消费者代理
+     * @param map
+     * @return
+     */
     @SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
     private T createProxy(Map<String, String> map) {
+        // 判断消费者是否引用的是本地(JVM)提供的服务
         URL tmpUrl = new URL("temp", "localhost", 0, map);
         final boolean isJvmRefer;
+        // dubbo:reference标签的injvm(已过期，被local属性替换)如果为空
         if (isInjvm() == null) {
+            // a. dubbo:reference标签的url不为空，不是本地提供的服务
             if (url != null && url.length() > 0) { // if a url is specified, don't do local reference
                 isJvmRefer = false;
+            // b. 获取dubbo:reference的scop属性判断是否是isInjvm
             } else if (InjvmProtocol.getInjvmProtocol().isInjvmRefer(tmpUrl)) {
                 // by default, reference local service if there is
                 isJvmRefer = true;
             } else {
                 isJvmRefer = false;
             }
+        // dubbo:reference标签的injvm(已过期，被local属性替换)如果不为空，则取该值
         } else {
             isJvmRefer = isInjvm().booleanValue();
         }
 
+        // 1.消费者引用的是本地JVM中的服务
         if (isJvmRefer) {
             URL url = new URL(Constants.LOCAL_PROTOCOL, NetUtils.LOCALHOST, 0, interfaceClass.getName()).addParameters(map);
+            // 这里创建的应该是InjvmInvoker
             invoker = refprotocol.refer(interfaceClass, url);
             if (logger.isInfoEnabled()) {
                 logger.info("Using injvm service " + interfaceClass.getName());
             }
+        // 2. 消费者引用的不是本地JVM中的服务
         } else {
+            // 2.1 用户指定服务提供者URL，可以是点对点地址或注册中心的地址
             if (url != null && url.length() > 0) { // user specified URL, could be peer-to-peer address, or register center's address.
+                // 根据;分割服务提供者URL并遍历
                 String[] us = Constants.SEMICOLON_SPLIT_PATTERN.split(url);
                 if (us != null && us.length > 0) {
                     for (String u : us) {
                         URL url = URL.valueOf(u);
+                        // URL中没有path则设置其为interfaceName
                         if (url.getPath() == null || url.getPath().length() == 0) {
                             url = url.setPath(interfaceName);
                         }
+                        // 直连提供者的协议为registry，则对url增加refer属性，其值为消息消费者所有的属性。(表示从注册中心发现服务提供者)
                         if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
                             urls.add(url.addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map)));
+                        // 如果是其他协议提供者，则合并服务提供者与消息消费者的属性。并移除服务提供者默认属性。以default开头的属性
                         } else {
                             urls.add(ClusterUtils.mergeUrl(url, map));
                         }
                     }
                 }
+            // 2.2 从注册中心订阅的服务
             } else { // assemble URL from register center's configuration
+                // 获取所有注册中心的URL地址
                 List<URL> us = loadRegistries(false);
                 if (us != null && !us.isEmpty()) {
                     for (URL u : us) {
+                        // 获取所有监控中心的URL地址
                         URL monitorUrl = loadMonitor(u);
                         if (monitorUrl != null) {
+                            // 在消费者配置中增加monitor属性，key是注册中心递增
                             map.put(Constants.MONITOR_KEY, URL.encode(monitorUrl.toFullString()));
                         }
+                        // 增加refer属性，key为消费者所有配置组成的URL
                         urls.add(u.addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map)));
                     }
                 }
@@ -414,18 +437,22 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                     throw new IllegalStateException("No such any registry to reference " + interfaceName + " on the consumer " + NetUtils.getLocalHost() + " use dubbo version " + Version.getVersion() + ", please config <dubbo:registry address=\"...\" /> to your spring config.");
                 }
             }
-
+            // 只有一个服务提供者
             if (urls.size() == 1) {
+                // 直接根据协议构建Invoker
                 invoker = refprotocol.refer(interfaceClass, urls.get(0));
+            // 多个服务提供者，则多个服务提供者构建一个集群
             } else {
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
                 URL registryURL = null;
                 for (URL url : urls) {
                     invokers.add(refprotocol.refer(interfaceClass, url));
+                    // 基于服务中心注册发现提供者类别，此时的协议为registry
                     if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
                         registryURL = url; // use last registry url
                     }
                 }
+                // 创建集群Invoker
                 if (registryURL != null) { // registry url is available
                     // use AvailableCluster only when register's cluster is available
                     URL u = registryURL.addParameter(Constants.CLUSTER_KEY, AvailableCluster.NAME);
@@ -436,6 +463,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             }
         }
 
+        // dubbo:referecnce标签中为配置check属性，则默认为true
         Boolean c = check;
         if (c == null && consumer != null) {
             c = consumer.isCheck();
@@ -443,6 +471,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (c == null) {
             c = true; // default true
         }
+        // 校验服务提供者是否可用
         if (c && !invoker.isAvailable()) {
             throw new IllegalStateException("Failed to check the status of the service " + interfaceName + ". No provider available for the service " + (group == null ? "" : group + "/") + interfaceName + (version == null ? "" : ":" + version) + " from the url " + invoker.getUrl() + " to the consumer " + NetUtils.getLocalHost() + " use dubbo version " + Version.getVersion());
         }
@@ -450,6 +479,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             logger.info("Refer dubbo service " + interfaceClass.getName() + " from url " + invoker.getUrl());
         }
         // create service proxy
+        // 创建代理
         return (T) proxyFactory.getProxy(invoker);
     }
 

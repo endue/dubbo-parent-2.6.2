@@ -91,6 +91,16 @@ public class InjvmProtocol extends AbstractProtocol implements Protocol {
         return new InjvmInvoker<T>(serviceType, url, url.getServiceKey(), exporterMap);
     }
 
+    /**
+     * 如果为空，isJvmRefer为false。
+     * 如果协议为injvm，就是表示为本地协议，既然提供了本地协议的实现，则无需配置isJvmRefer该标签为true，故，isJvmRerfer=false。
+     * 如果scope=local或injvm=true，isJvmRefer=true。
+     * 如果scope=remote，isJvmRefer设置为false。
+     * 如果是泛化引用，isJvmRefer设置为false。
+     * 其他默认情况，isJvmRefer设置为true。
+     * @param url
+     * @return
+     */
     public boolean isInjvmRefer(URL url) {
         final boolean isJvmRefer;
         String scope = url.getParameter(Constants.SCOPE_KEY);
