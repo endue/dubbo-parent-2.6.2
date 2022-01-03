@@ -155,6 +155,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         return urls;
     }
 
+    /**
+     * 初始化dubbo:reference标签引用接口的实例
+     * @return
+     */
     public synchronized T get() {
         if (destroyed) {
             throw new IllegalStateException("Already destroyed!");
@@ -183,19 +187,25 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     }
 
     private void init() {
+        // 1. 已经初始化返回
         if (initialized) {
             return;
         }
         initialized = true;
+        // 2. 引用的接口未配置，抛异常
         if (interfaceName == null || interfaceName.length() == 0) {
             throw new IllegalStateException("<dubbo:reference interface=\"\" /> interface not allow null!");
         }
         // get consumer's global configuration
+        // 3. dubbo:reference标签的consumer属性为空则创建一个并填充默认属性
         checkDefault();
+        // 4. 填充dubbo:reference标签中未配置的属性标签
         appendProperties(this);
+
         if (getGeneric() == null && getConsumer() != null) {
             setGeneric(getConsumer().getGeneric());
         }
+        // 5. 泛型化引用将interface值替换为GenericService全路径名，如果不是则加载interfacename
         if (ProtocolUtils.isGeneric(getGeneric())) {
             interfaceClass = GenericService.class;
         } else {
@@ -205,10 +215,16 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
+            // 校验dubbo:reference的子标签dubbo:method引用的方法是否在interface指定的接口中存在
             checkInterfaceAndMethods(interfaceClass, methods);
         }
+        // 6. 从系统属性中获取引用接口的直连服务提供者
+        // 如：<dubbo:reference id="demoService" check="false" interface="com.alibaba.dubbo.demo.DemoService"/>
+        // 则系统配置：-Dcom.alibaba.dubbo.demo.DemoService=dubbo://xxx
         String resolve = System.getProperty(interfaceName);
         String resolveFile = null;
+        // 6.1 如果未指定-D属性，尝试从resolve配置文件中查找
+        // 通过-Ddubbo.resolve.file=文件路径名来指定，如果未配置该系统参数，则从${user.home}/dubbo-resolve.properties,如果过文件存在，则设置resolveFile的值，否则resolveFile为null
         if (resolve == null || resolve.length() == 0) {
             resolveFile = System.getProperty("dubbo.resolve.file");
             if (resolveFile == null || resolveFile.length() == 0) {
@@ -245,6 +261,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
             }
         }
+        // 7. dubbo:reference标签中未配置如下四项并且dubbo:consumer标签不为空，尝试从dubbo:consumer标签中获取
         if (consumer != null) {
             if (application == null) {
                 application = consumer.getApplication();
@@ -275,8 +292,11 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 monitor = application.getMonitor();
             }
         }
+        // 8. 校验ReferenceBean的application是否为空,如果为空，new一个application并尝试从系统属性、资源文件中填充其属性
         checkApplication();
+        // 9. 校验stub、mock实现类与interface的兼容性
         checkStubAndMock(interfaceClass);
+        // 10. 封装map
         Map<String, String> map = new HashMap<String, String>();
         Map<Object, Object> attributes = new HashMap<Object, Object>();
         map.put(Constants.SIDE_KEY, Constants.CONSUMER_SIDE);
@@ -285,7 +305,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (ConfigUtils.getPid() > 0) {
             map.put(Constants.PID_KEY, String.valueOf(ConfigUtils.getPid()));
         }
+        // 非泛型化接口
         if (!isGeneric()) {
+            // 增加methods:interface的所有方法名，多个用逗号隔开
             String revision = Version.getVersion(interfaceClass, version);
             if (revision != null && revision.length() > 0) {
                 map.put("revision", revision);
@@ -299,11 +321,13 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 map.put("methods", StringUtils.join(new HashSet<String>(Arrays.asList(methods)), ","));
             }
         }
+        // 用Map存储application配置、module配置、默认消费者参数(ConsumerConfig)、服务消费者dubbo:reference的属性
         map.put(Constants.INTERFACE_KEY, interfaceName);
         appendParameters(map, application);
         appendParameters(map, module);
         appendParameters(map, consumer, Constants.DEFAULT_KEY);
         appendParameters(map, this);
+
         String prefix = StringUtils.getServiceKey(map);
         if (methods != null && !methods.isEmpty()) {
             for (MethodConfig method : methods) {
@@ -319,7 +343,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 checkAndConvertImplicitConfig(method, map, attributes);
             }
         }
-
+        // 填充register.ip属性，该属性是消费者连接注册中心的IP，并不是注册中心自身的IP
         String hostToRegistry = ConfigUtils.getSystemProperty(Constants.DUBBO_IP_TO_REGISTRY);
         if (hostToRegistry == null || hostToRegistry.length() == 0) {
             hostToRegistry = NetUtils.getLocalHost();
@@ -330,6 +354,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
         //attributes are stored by system context.
         StaticContext.getSystemContext().putAll(attributes);
+        // 创建消费者代理
         ref = createProxy(map);
         ConsumerModel consumerModel = new ConsumerModel(getUniqueServiceName(), this, ref, interfaceClass.getMethods());
         ApplicationModel.initConsumerModel(getUniqueServiceName(), consumerModel);

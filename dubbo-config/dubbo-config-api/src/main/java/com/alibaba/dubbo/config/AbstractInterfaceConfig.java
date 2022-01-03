@@ -88,6 +88,9 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     protected ModuleConfig module;
 
     // registry centers
+    /**
+     * 注册中心集合
+     */
     protected List<RegistryConfig> registries;
 
     // connection events
