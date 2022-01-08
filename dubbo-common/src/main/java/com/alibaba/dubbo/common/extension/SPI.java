@@ -59,7 +59,7 @@ public @interface SPI {
 
     /**
      * default extension name
-     * 默认扩展名
+     * 默认扩展名，也就是被标注接口所有的实现类中的一个key
      */
     String value() default "";
 

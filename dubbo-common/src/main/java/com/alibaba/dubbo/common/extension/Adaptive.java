@@ -27,6 +27,8 @@ import java.lang.annotation.Target;
 /**
  * Provide helpful information for {@link ExtensionLoader} to inject dependency extension instance.
  *
+ * 在某接口的实现类上面加上@Adaptive注解，表明该实现类是该接口的适配器
+ * 在某接口的方法上面加上@Adaptive注解，会动态生成适配器类。注意有该注解的方法参数必须包含URL，这样才能根据URL中的配置来选择对应的扩展实现
  * @see ExtensionLoader
  * @see URL
  */

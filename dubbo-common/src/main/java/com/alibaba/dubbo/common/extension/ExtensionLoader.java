@@ -70,11 +70,15 @@ public class ExtensionLoader<T> {
     private static final Pattern NAME_SEPARATOR = Pattern.compile("\\s*[,]+\\s*");
 
     /**
-     * 存储扩展类加载器
-     * key是扩展类，value是加载器
+     * 存储可扩展接口加载器
+     * key是可扩展接口，value是加载器
      */
     private static final ConcurrentMap<Class<?>, ExtensionLoader<?>> EXTENSION_LOADERS = new ConcurrentHashMap<Class<?>, ExtensionLoader<?>>();
 
+    /**
+     * 存储可扩展接口实现类
+     * key是可扩展接口的实现类，value是实现类对象
+     */
     private static final ConcurrentMap<Class<?>, Object> EXTENSION_INSTANCES = new ConcurrentHashMap<Class<?>, Object>();
 
     // ==============================
@@ -111,7 +115,7 @@ public class ExtensionLoader<T> {
     }
 
     /**
-     * 获取扩展类加载器，没有就创建一个并缓存到EXTENSION_LOADERS中
+     * 获取扩展接口的加载器，没有就创建一个并缓存
      * @param type
      * @param <T>
      * @return
@@ -188,6 +192,8 @@ public class ExtensionLoader<T> {
 
     /**
      * Get activate extensions.
+     *
+     * 获取符合自动激活条件的扩展接口的实现类的对象集合
      *
      * @param url    url
      * @param values extension point names
