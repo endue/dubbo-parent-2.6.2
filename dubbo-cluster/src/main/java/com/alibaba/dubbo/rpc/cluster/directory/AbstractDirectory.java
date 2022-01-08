@@ -115,6 +115,11 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
         return consumerUrl;
     }
 
+    /**
+     * 设置为消费者URL
+     * 如：consumer://192.168.6.1/com.alibaba.dubbo.demo.DemoService?application=demo-consumer&category=providers,configurators,routers&check=false&dubbo=2.0.0&interface=com.alibaba.dubbo.demo.DemoService&methods=sayHello&pid=53360&qos.port=33333&side=consumer&timestamp=1641622896509
+     * @param consumerUrl
+     */
     public void setConsumerUrl(URL consumerUrl) {
         this.consumerUrl = consumerUrl;
     }

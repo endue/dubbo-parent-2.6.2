@@ -69,6 +69,9 @@ public abstract class AbstractRegistry implements Registry {
     private final boolean syncSaveFile;
     private final AtomicLong lastCacheChanged = new AtomicLong();
     private final Set<URL> registered = new ConcurrentHashSet<URL>();
+    /**
+     * URL和对应的事件监听者集合
+     */
     private final ConcurrentMap<URL, Set<NotifyListener>> subscribed = new ConcurrentHashMap<URL, Set<NotifyListener>>();
     private final ConcurrentMap<URL, Map<String, List<URL>>> notified = new ConcurrentHashMap<URL, Map<String, List<URL>>>();
     private URL registryUrl;
@@ -286,6 +289,11 @@ public abstract class AbstractRegistry implements Registry {
         registered.remove(url);
     }
 
+    /**
+     * 记录URL对应的事件监听者
+     * @param url      Subscription condition, not allowed to be empty, e.g. consumer://10.20.153.10/com.alibaba.foo.BarService?version=1.0.0&application=kylin
+     * @param listener A listener of the change event, not allowed to be empty
+     */
     @Override
     public void subscribe(URL url, NotifyListener listener) {
         if (url == null) {

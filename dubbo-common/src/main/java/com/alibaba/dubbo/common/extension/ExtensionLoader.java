@@ -61,6 +61,12 @@ public class ExtensionLoader<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(ExtensionLoader.class);
 
+    /**
+     * 存放配置文件的路径变量
+     * "META-INF/services/"是dubbo为了兼容jdk的SPI扩展机制思想而设存在的
+     * "META-INF/dubbo/internal/"是dubbo内部提供的扩展的配置文件路径
+     * "META-INF/dubbo/"是为了给用户自定义的扩展实现配置文件存放
+     */
     private static final String SERVICES_DIRECTORY = "META-INF/services/";
 
     private static final String DUBBO_DIRECTORY = "META-INF/dubbo/";
@@ -110,6 +116,12 @@ public class ExtensionLoader<T> {
         objectFactory = (type == ExtensionFactory.class ? null : ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension());
     }
 
+    /**
+     * 判断参数type所表示的类上是否有SPI注解
+     * @param type
+     * @param <T>
+     * @return
+     */
     private static <T> boolean withExtensionAnnotation(Class<T> type) {
         return type.isAnnotationPresent(SPI.class);
     }
@@ -205,6 +217,7 @@ public class ExtensionLoader<T> {
         List<T> exts = new ArrayList<T>();
         List<String> names = values == null ? new ArrayList<String>(0) : Arrays.asList(values);
         if (!names.contains(Constants.REMOVE_VALUE_PREFIX + Constants.DEFAULT_KEY)) {
+            // 获得扩展实现类数组，把扩展实现类放到cachedClasses中
             getExtensionClasses();
             for (Map.Entry<String, Activate> entry : cachedActivates.entrySet()) {
                 String name = entry.getKey();

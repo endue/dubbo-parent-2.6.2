@@ -35,6 +35,8 @@ import java.lang.annotation.Target;
  * SPI provider can call {@link ExtensionLoader#getActivateExtension(URL, String, String)} to find out all activated
  * extensions with the given criteria.
  *
+ * 作用在类或者方法上，表示被激活的条件
+ *
  * @see SPI
  * @see URL
  * @see ExtensionLoader
@@ -47,6 +49,9 @@ public @interface Activate {
      * Activate the current extension when one of the groups matches. The group passed into
      * {@link ExtensionLoader#getActivateExtension(URL, String, String)} will be used for matching.
      *
+     * 激活条件之一
+     * 该group参数将与被传入{@link ExtensionLoader#getActivateExtension(URL, String, String)}方法的group参数进行匹配，符合条件将被激活
+     *
      * @return group names to match
      * @see ExtensionLoader#getActivateExtension(URL, String, String)
      */
@@ -58,6 +63,9 @@ public @interface Activate {
      * For example, given <code>@Activate("cache, validation")</code>, the current extension will be return only when
      * there's either <code>cache</code> or <code>validation</code> key appeared in the URL's parameters.
      * </p>
+     *
+     * 激活条件之二
+     * 当URL中包含该value值是则符合条件被激活
      *
      * @return URL parameter keys
      * @see ExtensionLoader#getActivateExtension(URL, String)

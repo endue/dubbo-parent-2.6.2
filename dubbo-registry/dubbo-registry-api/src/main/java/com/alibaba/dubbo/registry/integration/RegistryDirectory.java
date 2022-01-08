@@ -66,8 +66,17 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
     private static final RouterFactory routerFactory = ExtensionLoader.getExtensionLoader(RouterFactory.class).getAdaptiveExtension();
 
     private static final ConfiguratorFactory configuratorFactory = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class).getAdaptiveExtension();
+    /**
+     * 注册中心URL中的serviceKey
+     */
     private final String serviceKey; // Initialization at construction time, assertion not null
+    /**
+     * <dubbo:reference interface="xxx"/> 消费者引用的服务
+     */
     private final Class<T> serviceType; // Initialization at construction time, assertion not null
+    /**
+     * 注册中心URL中服务消费者的所有配置参数
+     */
     private final Map<String, String> queryMap; // Initialization at construction time, assertion not null
     private final URL directoryUrl; // Initialization at construction time, assertion not null, and always assign non null value
     private final String[] serviceMethods;
@@ -95,6 +104,11 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
     // Set<invokerUrls> cache invokeUrls to invokers mapping.
     private volatile Set<URL> cachedInvokerUrls; // The initial value is null and the midway may be assigned to null, please use the local variable reference
 
+    /**
+     *
+     * @param serviceType 消费者 <dubbo:reference interface="xxx"/> 引用的服务
+     * @param url 注册中心的URL，如：zookeeper://192.168.6.133:2181/com.alibaba.dubbo.registry.RegistryService?application=demo-consumer&dubbo=2.0.0&pid=50092&qos.port=33333&refer=application%3Ddemo-consumer%26check%3Dfalse%26dubbo%3D2.0.0%26interface%3Dcom.alibaba.dubbo.demo.DemoService%26methods%3DsayHello%26pid%3D50092%26qos.port%3D33333%26register.ip%3D192.168.6.1%26side%3Dconsumer%26timestamp%3D1641620228069&timestamp=1641620228116
+     */
     public RegistryDirectory(Class<T> serviceType, URL url) {
         super(url);
         if (serviceType == null)

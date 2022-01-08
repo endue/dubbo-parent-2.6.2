@@ -272,10 +272,19 @@ public class RegistryProtocol implements Protocol {
         return key;
     }
 
+    /**
+     * 基于注册中心发现服务提供者
+     * @param type Service class
+     * @param url  URL address for the remote service
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
         url = url.setProtocol(url.getParameter(Constants.REGISTRY_KEY, Constants.DEFAULT_REGISTRY)).removeParameter(Constants.REGISTRY_KEY);
+        // 生成注册中心实现类
         Registry registry = registryFactory.getRegistry(url);
         if (RegistryService.class.equals(type)) {
             return proxyFactory.getInvoker((T) registry, type, url);
@@ -297,18 +306,32 @@ public class RegistryProtocol implements Protocol {
         return ExtensionLoader.getExtensionLoader(Cluster.class).getExtension("mergeable");
     }
 
+    /**
+     *
+     * @param cluster 集群策略
+     * @param registry 注册中心实现类
+     * @param type 引用服务名，<dubbo:reference interface="xxx" />
+     * @param url 注册中心URL
+     * @param <T>
+     * @return
+     */
     private <T> Invoker<T> doRefer(Cluster cluster, Registry registry, Class<T> type, URL url) {
+        // 构建RegistryDirectory并设置了注册中心地址和协议，todo 它是做什么的？
         RegistryDirectory<T> directory = new RegistryDirectory<T>(type, url);
         directory.setRegistry(registry);
         directory.setProtocol(protocol);
         // all attributes of REFER_KEY
         Map<String, String> parameters = new HashMap<String, String>(directory.getUrl().getParameters());
+        // 构建服务消费者URL：consumer://192.168.6.1/com.alibaba.dubbo.demo.DemoService?application=demo-consumer&check=false&dubbo=2.0.0&interface=com.alibaba.dubbo.demo.DemoService&methods=sayHello&pid=35992&qos.port=33333&side=consumer&timestamp=1641611843114
         URL subscribeUrl = new URL(Constants.CONSUMER_PROTOCOL, parameters.remove(Constants.REGISTER_IP_KEY), 0, type.getName(), parameters);
         if (!Constants.ANY_VALUE.equals(url.getServiceInterface())
                 && url.getParameter(Constants.REGISTER_KEY, true)) {
+            // 向注册中心注册服务消费者同时在消费者URL中增加category=consumers、check=false两个属性
             registry.register(subscribeUrl.addParameters(Constants.CATEGORY_KEY, Constants.CONSUMERS_CATEGORY,
                     Constants.CHECK_KEY, String.valueOf(false)));
         }
+        // 为消息消费者URL增加category=providers,configurators,routers属性后，然后向注册中心订阅该URL
+        // 关注该服务下的providers,configurators,routers发生变化时通知RegistryDirectory，以便及时发现服务提供者、配置、路由规则的变化
         directory.subscribe(subscribeUrl.addParameter(Constants.CATEGORY_KEY,
                 Constants.PROVIDERS_CATEGORY
                         + "," + Constants.CONFIGURATORS_CATEGORY
