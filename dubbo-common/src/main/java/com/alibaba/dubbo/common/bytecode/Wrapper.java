@@ -110,6 +110,11 @@ public abstract class Wrapper {
         return ret;
     }
 
+    /**
+     * 生成包装类
+     * @param c
+     * @return
+     */
     private static Wrapper makeWrapper(Class<?> c) {
         if (c.isPrimitive())
             throw new IllegalArgumentException("Can not create wrapper for primitive type: " + c);

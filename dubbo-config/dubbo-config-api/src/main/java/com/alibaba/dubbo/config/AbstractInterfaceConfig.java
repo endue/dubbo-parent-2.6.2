@@ -90,6 +90,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     // registry centers
     /**
      * 注册中心集合
+     * dubbo:registry标签
      */
     protected List<RegistryConfig> registries;
 

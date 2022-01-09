@@ -45,7 +45,10 @@ import java.util.Map;
  * ServiceFactoryBean
  *
  * 对应dubbo中的dubbo:service标签
- *
+ * 服务暴露大体分为三个步骤：
+ * 前置工作，主要用于检查参数，组装 URL。
+ * 导出服务，包含暴露服务到本地 (JVM)，和暴露服务到远程两个过程。
+ * 向注册中心注册服务，用于服务发现
  * @export
  */
 public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean, DisposableBean, ApplicationContextAware, ApplicationListener<ContextRefreshedEvent>, BeanNameAware {

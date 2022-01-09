@@ -70,13 +70,21 @@ import static com.alibaba.dubbo.common.utils.NetUtils.isInvalidPort;
 public class ServiceConfig<T> extends AbstractServiceConfig {
 
     private static final long serialVersionUID = 3033787999037024738L;
-
+    /**
+     * 自适应协议
+     */
     private static final Protocol protocol = ExtensionLoader.getExtensionLoader(Protocol.class).getAdaptiveExtension();
-
+    /**
+     * 自适应代理工程
+     */
     private static final ProxyFactory proxyFactory = ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();
-
+    /**
+     * 保存protocol和port的映射关系
+     */
     private static final Map<String, Integer> RANDOM_PORT_MAP = new HashMap<String, Integer>();
-
+    /**
+     * 延迟暴露的线程池
+     */
     private static final ScheduledExecutorService delayExportExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("DubboServiceDelayExporter", true));
     private final List<URL> urls = new ArrayList<URL>();
     private final List<Exporter<?>> exporters = new ArrayList<Exporter<?>>();
@@ -86,24 +94,32 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      */
     private String interfaceName;
     /**
-     * 暴露的接口类全限定名
+     * 暴露的接口全限定名
      */
     private Class<?> interfaceClass;
     // reference to interface impl
     /**
-     * ref属性引用的实现类名称
+     * 暴露的接口具体实现类的Bean对象
      */
     private T ref;
     // service name
     private String path;
     // method configuration
+    /**
+     * 对应dubbo:service标签的dubbo:method子标签中的配置
+     */
     private List<MethodConfig> methods;
     /**
-     * 要暴露的服务相关配置信息
+     * 暴露的服务相关配置信息
      */
     private ProviderConfig provider;
+    /**
+     * 是否已经暴露
+     */
     private transient volatile boolean exported;
-
+    /**
+     * 是否需要暴露
+     */
     private transient volatile boolean unexported;
 
     /**
@@ -222,7 +238,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (export != null && !export) {
             return;
         }
-
+        // 延迟暴露服务配置 <dubbo:service interface="xxx" ref="yyy" delay="0">
         if (delay != null && delay > 0) {
             delayExportExecutor.schedule(new Runnable() {
                 @Override
@@ -246,9 +262,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (interfaceName == null || interfaceName.length() == 0) {
             throw new IllegalStateException("<dubbo:service interface=\"\" /> interface not allow null!");
         }
-        // 为provider设置系统属性或配置文件中的值
+        // 检查provider是否为null，如果是则创建一个并尝试读取系统设置或配置文件中的值
         checkDefault();
-
+        // 把provider中的application，module，registries，monitor，protocols赋值给SerivceConfig属性
         if (provider != null) {
             if (application == null) {
                 application = provider.getApplication();
@@ -282,7 +298,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 monitor = application.getMonitor();
             }
         }
-        // ref是GenericService则表示是泛型化实现
+        // 检查接口实现类的bean对象ref是否为GenericService类型，如果是则表示是泛型化实现
         if (ref instanceof GenericService) {
             interfaceClass = GenericService.class;
             if (StringUtils.isEmpty(generic)) {
@@ -295,7 +311,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
+            // 校验dubbo:method标签中的方法是否在接口中
             checkInterfaceAndMethods(interfaceClass, methods);
+            // 校验实现类是否是接口子类
             checkRef();
             generic = Boolean.FALSE.toString();
         }
@@ -382,7 +400,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls() {
-        // 根据注册中心，将要暴露的服务全部转换为URL对象
+        // 获取注册中心的URL对象
         List<URL> registryURLs = loadRegistries(true);
         // 遍历协议，根据协议向每一个注册中心注册
         for (ProtocolConfig protocolConfig : protocols) {
@@ -520,6 +538,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                     .getExtension(url.getProtocol()).getConfigurator(url).configure(url);
         }
 
+        /* --------------上面的操作无非就是获取各种配置最后组装成一个URL---------------- */
+
         // 获取dubbo:service标签的scope属性值：none(不暴露)、local(本地)、remote(远程)
         String scope = url.getParameter(Constants.SCOPE_KEY);
         // don't export when none is configured
@@ -567,16 +587,24 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         this.urls.add(url);
     }
 
+    /**
+     * 本地服务暴露
+     * @param url
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void exportLocal(URL url) {
+        // URL中的protocol不是injvm则强行设置为injvm
         if (!Constants.LOCAL_PROTOCOL.equalsIgnoreCase(url.getProtocol())) {
             URL local = URL.valueOf(url.toFullString())
                     .setProtocol(Constants.LOCAL_PROTOCOL)
                     .setHost(LOCALHOST)
                     .setPort(0);
+            // 将实现类的class并保存到全局ThreadLocal中
             ServiceClassHolder.getInstance().pushServiceClass(getServiceClass(ref));
+            // 如果URL中的protocol=injvm则就是InjvmProtocol，依次类推
             Exporter<?> exporter = protocol.export(
                     proxyFactory.getInvoker(ref, (Class) interfaceClass, local));
+
             exporters.add(exporter);
             logger.info("Export dubbo service " + interfaceClass.getName() + " to local registry");
         }
