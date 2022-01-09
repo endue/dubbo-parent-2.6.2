@@ -101,7 +101,7 @@ public class ExtensionLoader<T> {
      */
     private final Holder<Map<String, Class<?>>> cachedClasses = new Holder<Map<String, Class<?>>>();
     /**
-     * 扩展类的扩展名与加有@Activate的自动激活类的映射
+     * 扩展类的扩展名与加有@Activate注解的自动激活类的映射
      */
     private final Map<String, Activate> cachedActivates = new ConcurrentHashMap<String, Activate>();
     private final ConcurrentMap<String, Holder<Object>> cachedInstances = new ConcurrentHashMap<String, Holder<Object>>();
@@ -786,10 +786,9 @@ public class ExtensionLoader<T> {
                     }
                 }
             }
-            // 获取扩展实现类上的所欲偶扩展名
+            // 获取扩展实现类上的所有扩展名
             String[] names = NAME_SEPARATOR.split(name);
             if (names != null && names.length > 0) {
-                // 扩展实现类是自动集合的实现类，添加到缓存中
                 Activate activate = clazz.getAnnotation(Activate.class);
                 if (activate != null) {
                     cachedActivates.put(names[0], activate);
