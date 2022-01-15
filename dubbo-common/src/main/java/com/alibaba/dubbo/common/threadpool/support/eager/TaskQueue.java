@@ -50,16 +50,19 @@ public class TaskQueue<R extends Runnable> extends LinkedBlockingQueue<Runnable>
 
         int currentPoolThreadSize = executor.getPoolSize();
         // have free worker. put task into queue to let the worker deal with task.
+        // 线程池中当前的任务小于线程池大小，说明有空闲线程，将任务丢入队列
         if (executor.getSubmittedTaskCount() < currentPoolThreadSize) {
             return super.offer(runnable);
         }
 
         // return false to let executor create new worker.
+        /// 当前线程池小于最大线程池，返回false，然后在ThreadPoolExecutor#execute()方法中会去创建线程
         if (currentPoolThreadSize < executor.getMaximumPoolSize()) {
             return false;
         }
 
         // currentPoolThreadSize >= max
+        // 当初线程池达到最大线程池大小，将任务丢入队列
         return super.offer(runnable);
     }
 
