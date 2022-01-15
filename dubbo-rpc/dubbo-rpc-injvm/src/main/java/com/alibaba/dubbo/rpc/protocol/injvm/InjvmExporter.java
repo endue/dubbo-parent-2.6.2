@@ -29,6 +29,9 @@ class InjvmExporter<T> extends AbstractExporter<T> {
 
     private final String key;
 
+    /**
+     * 记录本地暴露的服务
+     */
     private final Map<String, Exporter<?>> exporterMap;
 
     InjvmExporter(Invoker<T> invoker, String key, Map<String, Exporter<?>> exporterMap) {
