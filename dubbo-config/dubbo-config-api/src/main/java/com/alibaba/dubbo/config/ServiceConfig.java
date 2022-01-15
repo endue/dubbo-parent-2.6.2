@@ -560,7 +560,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         // dubbo:service的dynamic属性未配置，尝试取dubbo:registry的dynamic属性。
                         // 该属性的作用是否启用动态注册，如果设置为false，服务注册后，其状态显示为disable，需要人工启用，当服务不可用时，也不会自动移除，同样需要人工处理，此属性不要在生产环境上配置
                         url = url.addParameterIfAbsent(Constants.DYNAMIC_KEY, registryURL.getParameter(Constants.DYNAMIC_KEY));
-                        // 构建监控中心URL
+                        // 将监控中心地址添加到URL中
                         URL monitorUrl = loadMonitor(registryURL);
                         if (monitorUrl != null) {
                             url = url.addParameterAndEncoded(Constants.MONITOR_KEY, monitorUrl.toFullString());
@@ -571,11 +571,12 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         // 构建远程调用的实现类
                         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(Constants.EXPORT_KEY, url.toFullString()));
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
-
+                        // Protocol这个扩展点export方法上是有@Adaptive注解的，然后没有value，根据自适应的规则，没有value则value=类名小写
+                        // 此时就从URL中获取protocol对应的值，这里是registry
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
                         exporters.add(exporter);
                     }
-                } else {
+                } else {// 没有注册中心
                     Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, url);
                     DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 

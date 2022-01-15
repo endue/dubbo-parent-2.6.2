@@ -138,24 +138,27 @@ public class RegistryProtocol implements Protocol {
         //registry provider
         // 根据注册中心URL，从注册中心工厂中获取指定的注册中心实现类：zookeeper注册中心的实现类为：ZookeeperRegistry
         final Registry registry = getRegistry(originInvoker);
-        // 获取服务提供者URL中的register属性，如果为true,则调用注册中心的register()方法向注册中心注册服务
+        // 获取注册中心的URL
         final URL registedProviderUrl = getRegistedProviderUrl(originInvoker);
 
         //to judge to delay publish whether or not
         boolean register = registedProviderUrl.getParameter("register", true);
-
+        // 向本地服务注册表注册服务
         ProviderConsumerRegTable.registerProvider(originInvoker, registryUrl, registedProviderUrl);
-
+        // 向注册中心注册服务
         if (register) {
             register(registryUrl, registedProviderUrl);
+            // 将刚刚注册到本地注册表中的invoker中的reg属性设置成true表示注册了
             ProviderConsumerRegTable.getProviderWrapper(originInvoker).setReg(true);
         }
 
         // Subscribe the override data
         // FIXME When the provider subscribes, it will affect the scene : a certain JVM exposes the service and call the same service. Because the subscribed is cached key with the name of the service, it causes the subscription information to cover.
+        // 生成订阅的URL
         final URL overrideSubscribeUrl = getSubscribedOverrideUrl(registedProviderUrl);
         final OverrideListener overrideSubscribeListener = new OverrideListener(overrideSubscribeUrl, originInvoker);
         overrideListeners.put(overrideSubscribeUrl, overrideSubscribeListener);
+        // 订阅注册中心该URL
         registry.subscribe(overrideSubscribeUrl, overrideSubscribeListener);
         //Ensure that a new exporter instance is returned every time export
         return new DestroyableExporter<T>(exporter, originInvoker, overrideSubscribeUrl, registedProviderUrl);
