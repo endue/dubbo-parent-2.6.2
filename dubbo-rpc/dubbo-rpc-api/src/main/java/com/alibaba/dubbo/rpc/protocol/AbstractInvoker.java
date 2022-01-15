@@ -130,6 +130,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
                     + " is DESTROYED, can not be invoked any more!");
         }
         RpcInvocation invocation = (RpcInvocation) inv;
+        // 注意这里，将自己设置到invocation的invoker属性中
         invocation.setInvoker(this);
         if (attachment != null && attachment.size() > 0) {
             invocation.addAttachmentsIfAbsent(attachment);
