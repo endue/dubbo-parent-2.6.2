@@ -231,6 +231,7 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
         LoadBalance loadbalance = null;
         List<Invoker<T>> invokers = list(invocation);
         if (invokers != null && !invokers.isEmpty()) {
+            // 获取负载均衡策略，默认random
             loadbalance = ExtensionLoader.getExtensionLoader(LoadBalance.class).getExtension(invokers.get(0).getUrl()
                     .getMethodParameter(invocation.getMethodName(), Constants.LOADBALANCE_KEY, Constants.DEFAULT_LOADBALANCE));
         }
