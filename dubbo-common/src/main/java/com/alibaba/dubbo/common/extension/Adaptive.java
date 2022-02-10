@@ -26,9 +26,9 @@ import java.lang.annotation.Target;
 
 /**
  * Provide helpful information for {@link ExtensionLoader} to inject dependency extension instance.
+ * 自适应的
+ * 标注在类、接口、枚举、方法上
  *
- * 在某接口的实现类上面加上@Adaptive注解，表明该实现类是该接口的适配器
- * 在某接口的方法上面加上@Adaptive注解，会动态生成适配器类。注意有该注解的方法参数必须包含URL，这样才能根据URL中的配置来选择对应的扩展实现
  * @see ExtensionLoader
  * @see URL
  */
@@ -56,6 +56,7 @@ public @interface Adaptive {
      * <code>String[] {"yyy.invoker.wrapper"}</code>. This name will be used to search for parameter from URL.
      *
      * @return parameter key names in URL
+     * 自适应实现类的名称，从URL中获取，URL中没有则从SPI注解中获取默认值，SPI中没有则将接口的名称转换为小写，然后从URL中获取对应的value值
      */
     String[] value() default {};
 

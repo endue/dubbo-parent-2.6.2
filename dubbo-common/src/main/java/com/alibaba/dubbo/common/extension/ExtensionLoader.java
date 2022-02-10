@@ -111,7 +111,7 @@ public class ExtensionLoader<T> {
      */
     private volatile Class<?> cachedAdaptiveClass = null;
     /**
-     * SPI注解上的默认扩展名
+     * SPI注解上的默认扩展类的名称
      */
     private String cachedDefaultName;
     private volatile Throwable createAdaptiveInstanceError;
@@ -478,7 +478,6 @@ public class ExtensionLoader<T> {
 
     /**
      * 获取自适应的扩展类
-     * 这里以{@link com.alibaba.dubbo.rpc.Protocol}为例
      * @return
      */
     @SuppressWarnings("unchecked")
@@ -635,8 +634,9 @@ public class ExtensionLoader<T> {
     private Map<String, Class<?>> loadExtensionClasses() {
         // 获取当ExtensionLoader所属的扩展类上的SPI注解
         final SPI defaultAnnotation = type.getAnnotation(SPI.class);
+        // 获取SPI标注的默认扩展名
         if (defaultAnnotation != null) {
-            // 获取SPI注解上的扩展名
+            // 获取SPI注解上的默认扩展名
             String value = defaultAnnotation.value();
             if ((value = value.trim()).length() > 0) {
                 String[] names = NAME_SEPARATOR.split(value);// 根据,分割，出现多个则报错
@@ -713,7 +713,7 @@ public class ExtensionLoader<T> {
                              * 在文件中的内容，dubbo和java SPI不一样,举例如下：
                              * dubbo: spring=com.alibaba.dubbo.config.spring.extension.SpringExtensionFactory
                              * SPI: com.alibaba.dubbo.config.spring.extension.SpringExtensionFactory
-                             * 所有name可能不存在
+                             * 所以name可能不存在
                              */
                             String name = null;
                             int i = line.indexOf('=');
