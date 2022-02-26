@@ -773,6 +773,7 @@ public class ExtensionLoader<T> {
                         + ", " + clazz.getClass().getName());
             }
         // 判断实现类是否是包装类,这里体现了dubbo的AOP功能
+        // 注意这里并没有将包装类添加到extensionClasses集合中
         } else if (isWrapperClass(clazz)) {
             Set<Class<?>> wrappers = cachedWrapperClasses;
             if (wrappers == null) {
