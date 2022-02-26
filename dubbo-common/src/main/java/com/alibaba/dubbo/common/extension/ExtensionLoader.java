@@ -93,15 +93,15 @@ public class ExtensionLoader<T> {
 
     private final ExtensionFactory objectFactory;
     /**
-     * 缓存的扩展名与扩展类映射，和cachedClasses的key和value对换
+     * 缓存的扩展类与扩展名映射，和cachedClasses的key和value对换
      */
     private final ConcurrentMap<Class<?>, String> cachedNames = new ConcurrentHashMap<Class<?>, String>();
     /**
-     * 缓存的扩展类与扩展名映射，和cachedNames的key和value对换
+     * 缓存的扩展名与扩展类映射，和cachedNames的key和value对换
      */
     private final Holder<Map<String, Class<?>>> cachedClasses = new Holder<Map<String, Class<?>>>();
     /**
-     * 扩展类的扩展名与加有@Activate注解的自动激活类的映射
+     * 扩展类的扩展名与@Activate注解的映射
      */
     private final Map<String, Activate> cachedActivates = new ConcurrentHashMap<String, Activate>();
     /**
@@ -222,21 +222,25 @@ public class ExtensionLoader<T> {
      * 获取符合自动激活条件的扩展接口的实现类的对象集合
      *
      * @param url    url
-     * @param values extension point names
+     * @param values extension point names  扩展点的名字
      * @param group  group
-     * @return extension list which are activated
+     * @return extension list which are activated 激活的扩展列表
      * @see com.alibaba.dubbo.common.extension.Activate
      */
     public List<T> getActivateExtension(URL url, String[] values, String group) {
+        // 记录符合条件的实现类
         List<T> exts = new ArrayList<T>();
         List<String> names = values == null ? new ArrayList<String>(0) : Arrays.asList(values);
+        // 1. 从被@Activate注释的实现类中获取符合条件的实现类
         if (!names.contains(Constants.REMOVE_VALUE_PREFIX + Constants.DEFAULT_KEY)) {
-            // 获得扩展实现类数组，把扩展实现类放到cachedClasses中
             getExtensionClasses();
+            // 遍历可扩展接口的实现类中被@Activate注释的实现类
             for (Map.Entry<String, Activate> entry : cachedActivates.entrySet()) {
+                // 实现类的名字
                 String name = entry.getKey();
                 Activate activate = entry.getValue();
                 if (isMatchGroup(group, activate.group())) {
+                    // 获取实现类
                     T ext = getExtension(name);
                     if (!names.contains(name)
                             && !names.contains(Constants.REMOVE_VALUE_PREFIX + name)
@@ -247,6 +251,7 @@ public class ExtensionLoader<T> {
             }
             Collections.sort(exts, ActivateComparator.COMPARATOR);
         }
+        // 2.
         List<T> usrs = new ArrayList<T>();
         for (int i = 0; i < names.size(); i++) {
             String name = names.get(i);
@@ -753,7 +758,7 @@ public class ExtensionLoader<T> {
      * @param extensionClasses 缓存扩展实现类的Map集合
      * @param resourceURL 资源文件URL
      * @param clazz 资源文件中class实现类
-     * @param name class名称 可能不存在
+     * @param name class名称 可能不存在,也可能为多个
      * @throws NoSuchMethodException
      */
     private void loadClass(Map<String, Class<?>> extensionClasses, java.net.URL resourceURL, Class<?> clazz, String name) throws NoSuchMethodException {
@@ -763,7 +768,7 @@ public class ExtensionLoader<T> {
                     type + ", class line: " + clazz.getName() + "), class "
                     + clazz.getName() + "is not subtype of interface.");
         }
-        // 判断实现类是否有Adaptive注解，如果有只允许一个实现类上面有@Adaptive注解
+        // 1. 判断实现类是否有Adaptive注解，如果有只允许一个实现类上面有@Adaptive注解
         if (clazz.isAnnotationPresent(Adaptive.class)) {
             if (cachedAdaptiveClass == null) {
                 cachedAdaptiveClass = clazz;
@@ -772,7 +777,7 @@ public class ExtensionLoader<T> {
                         + cachedAdaptiveClass.getClass().getName()
                         + ", " + clazz.getClass().getName());
             }
-        // 判断实现类是否是包装类,这里体现了dubbo的AOP功能
+        // 2. 判断实现类是否是包装类,这里体现了dubbo的AOP功能
         // 注意这里并没有将包装类添加到extensionClasses集合中
         } else if (isWrapperClass(clazz)) {
             Set<Class<?>> wrappers = cachedWrapperClasses;
@@ -781,7 +786,7 @@ public class ExtensionLoader<T> {
                 wrappers = cachedWrapperClasses;
             }
             wrappers.add(clazz);
-        // 其他情况
+        // 3. 其他情况
         } else {
             clazz.getConstructor();
             if (name == null || name.length() == 0) {
@@ -796,7 +801,8 @@ public class ExtensionLoader<T> {
                     }
                 }
             }
-            // 获取扩展实现类上的所有扩展名
+            // 获取配置文件中当前读取的行配置的所有扩展实现类的名称,如下：
+            // car,car1,car2 = com.alibaba.dubbo.examples.extension.CarImpl
             String[] names = NAME_SEPARATOR.split(name);
             if (names != null && names.length > 0) {
                 Activate activate = clazz.getAnnotation(Activate.class);
@@ -918,15 +924,16 @@ public class ExtensionLoader<T> {
             Class<?>[] ets = method.getExceptionTypes();
 
             Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);
+            // 用code记录当前遍历的方法实现类中的代码
             StringBuilder code = new StringBuilder(512);
-            // 2.1 没有@Adaptive注解的方法，拼接异常信息不允许被调用
+            // 2.1 遍历的当前方法没有@Adaptive注解，拼接异常信息不允许被调用
             if (adaptiveAnnotation == null) {
                 code.append("throw new UnsupportedOperationException(\"method ")
                         .append(method.toString()).append(" of interface ")
                         .append(type.getName()).append(" is not adaptive method!\");");
-            // 2.2 有@Adaptive注解的方法
+            // 2.2 遍历的当前方法有@Adaptive注解
             } else {
-                // 查找参数列表中URL参数的位置
+                // 在参数列表中查找URL参数的位置
                 int urlTypeIndex = -1;
                 for (int i = 0; i < pts.length; ++i) {
                     if (pts[i].equals(URL.class)) {
@@ -935,7 +942,7 @@ public class ExtensionLoader<T> {
                     }
                 }
                 // found parameter in URL type
-                // 有URL参数，增加URL非空校验
+                // 2.2.1 有URL参数，则拼接URL非空校验
                 if (urlTypeIndex != -1) {
                     // Null Point check
                     String s = String.format("\nif (arg%d == null) throw new IllegalArgumentException(\"url == null\");",
@@ -946,13 +953,13 @@ public class ExtensionLoader<T> {
                     code.append(s);
                 }
                 // did not find parameter in URL type
-                // 没有URL参数
+                // 2.2.2 没有URL参数
                 else {
                     String attribMethod = null;
 
                     // find URL getter method
                     LBL_PTS:
-                    // 遍历所有的参数，获取参数中的get方法，查找是否有返回URL的
+                    // 在参数列表中，获取参数中属性的get方法，查找是否有URL
                     for (int i = 0; i < pts.length; ++i) {
                         Method[] ms = pts[i].getMethods();
                         for (Method m : ms) {
@@ -962,7 +969,7 @@ public class ExtensionLoader<T> {
                                     && !Modifier.isStatic(m.getModifiers())
                                     && m.getParameterTypes().length == 0
                                     && m.getReturnType() == URL.class) {
-                                // 有返回URL的getxxx方法则记录哪个参数，以及该参数的哪个方法名
+                                // 有返回URL的getxxx方法则记录哪个参数，以及该参数的属性的方法名
                                 urlTypeIndex = i;
                                 attribMethod = name;
                                 break LBL_PTS;
@@ -988,11 +995,12 @@ public class ExtensionLoader<T> {
                     code.append(s);
                 }
 
-                // 获取@Adaptive注解中的值
+                // 2.2.3 获取@Adaptive注解中的值(当前可扩展接口默认实现类的名称)
                 String[] value = adaptiveAnnotation.value();
                 // value is not set, use the value generated from class name as the key
                 // @Adaptive注解未配置value属性，则取可扩展接口的名称
                 if (value.length == 0) {
+                    // 获取当前可扩展接口的名称，就是默认实现类的名称
                     char[] charArray = type.getSimpleName().toCharArray();
                     StringBuilder sb = new StringBuilder(128);
                     for (int i = 0; i < charArray.length; i++) {
@@ -1008,6 +1016,7 @@ public class ExtensionLoader<T> {
                     value = new String[]{sb.toString()};
                 }
 
+                // todo 这里没看懂实际含义
                 // 判断参数列表是否有Invocation，如果有则生成非空校验并记录有该值
                 boolean hasInvocation = false;
                 for (int i = 0; i < pts.length; ++i) {
@@ -1022,15 +1031,11 @@ public class ExtensionLoader<T> {
                     }
                 }
 
-                /**
-                 * 说白了，这个自适应就是根据接口自己实现一个实现类，
-                 * 之后这个实现类能够根据@Adaptive配置的参数值再从URL中获取对应的值，
-                 * 然后再根据这个值使用spi获取扩展实现类，
-                 * 最后调用这个实现类的对应方法
-                 */
+                // 2.2.4 拼接从URL中获取扩展实现类的代码
+                // 获取当前接口默认实现类的名称
                 String defaultExtName = cachedDefaultName;
                 String getNameCode = null;
-                // 遍历@Adaptive注解中的值，然后从URL中获取该值对应的值
+                // 遍历@Adaptive注解中的值，然后拼接从URL中获取该值对应的代码
                 for (int i = value.length - 1; i >= 0; --i) {
                     if (i == value.length - 1) {
                         if (null != defaultExtName) {
@@ -1060,8 +1065,10 @@ public class ExtensionLoader<T> {
                             getNameCode = String.format("url.getProtocol() == null ? (%s) : url.getProtocol()", getNameCode);
                     }
                 }
+                // 拼接获取默认扩展类的代码
                 code.append("\nString extName = ").append(getNameCode).append(";");
                 // check extName == null?
+                // 校验默认扩展类不能为null
                 String s = String.format("\nif(extName == null) " +
                                 "throw new IllegalStateException(\"Fail to get extension(%s) name from url(\" + url.toString() + \") use keys(%s)\");",
                         type.getName(), Arrays.toString(value));
@@ -1086,6 +1093,7 @@ public class ExtensionLoader<T> {
                 code.append(");");
             }
 
+            // 最后就是流水代码，拼接该接口方法的实现类中的代码
             codeBuilder.append("\npublic ").append(rt.getCanonicalName()).append(" ").append(method.getName()).append("(");
             for (int i = 0; i < pts.length; i++) {
                 if (i > 0) {
