@@ -504,7 +504,7 @@ public class ExtensionLoader<T> {
                     instance = cachedAdaptiveInstance.get();
                     if (instance == null) {
                         try {
-                            // 创建自适应扩展类
+                            // 创建自适应扩展类并缓存到全局属性中
                             instance = createAdaptiveExtension();
                             cachedAdaptiveInstance.set(instance);
                         } catch (Throwable t) {
@@ -587,18 +587,19 @@ public class ExtensionLoader<T> {
         try {
             if (objectFactory != null) {
                 for (Method method : instance.getClass().getMethods()) {
-                    // 判断是否是set方法
+                    // 找到对应set方法，如setAge
                     if (method.getName().startsWith("set")
                             && method.getParameterTypes().length == 1
                             && Modifier.isPublic(method.getModifiers())) {
-                        // 获取要注入的类
+                        // 获取注入属性的类
                         Class<?> pt = method.getParameterTypes()[0];
                         try {
-                            // 获取要注入的属性名称，如setAge，这里得到的就是age
+                            // 获取注入的属性名称，如setAge，这里得到的就是age
                             String property = method.getName().length() > 3 ? method.getName().substring(3, 4).toLowerCase() + method.getName().substring(4) : "";
                             // 获取属性的Bean对象并注入
                             Object object = objectFactory.getExtension(pt, property);
                             if (object != null) {
+                                // 反射注入属性依赖
                                 method.invoke(instance, object);
                             }
                         } catch (Exception e) {

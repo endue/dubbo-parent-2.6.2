@@ -1,0 +1,3 @@
+audi=com.alibaba.dubbo.examples.extension.AudiImpl
+benz=com.alibaba.dubbo.examples.extension.BenzImpl
+wrapper=com.alibaba.dubbo.examples.extension.CarWrapperImpl

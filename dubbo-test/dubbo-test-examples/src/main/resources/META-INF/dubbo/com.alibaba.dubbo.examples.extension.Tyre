@@ -1,0 +1,2 @@
+tyre=com.alibaba.dubbo.examples.extension.TyreImpl
+tyre1=com.alibaba.dubbo.examples.extension.Tyre1Impl
