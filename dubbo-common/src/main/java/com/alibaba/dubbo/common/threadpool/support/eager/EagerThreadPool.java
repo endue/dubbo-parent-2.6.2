@@ -43,6 +43,7 @@ public class EagerThreadPool implements ThreadPool {
 
         // init queue and executor
         TaskQueue<Runnable> taskQueue = new TaskQueue<Runnable>(queues <= 0 ? 1 : queues);
+        // 注意这里创建的是EagerThreadPoolExecutor而不同于其他三个创建的ThreadPoolExecutor
         EagerThreadPoolExecutor executor = new EagerThreadPoolExecutor(cores,
                 threads,
                 alive,
