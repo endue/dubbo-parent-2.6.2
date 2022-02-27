@@ -87,6 +87,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      */
     private static final ScheduledExecutorService delayExportExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("DubboServiceDelayExporter", true));
     private final List<URL> urls = new ArrayList<URL>();
+    /**
+     * 保存服务提供者
+     */
     private final List<Exporter<?>> exporters = new ArrayList<Exporter<?>>();
     // interface type
     /**
@@ -111,6 +114,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private List<MethodConfig> methods;
     /**
      * 暴露的服务相关配置信息
+     * 对应dubbo:service和dubbo:protocol
      */
     private ProviderConfig provider;
     /**
@@ -265,6 +269,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         // 检查provider是否为null，如果是则创建一个并尝试读取系统设置或配置文件中的值
         checkDefault();
         // 把provider中的application，module，registries，monitor，protocols赋值给SerivceConfig属性
+        // 从这里有我可以看出dubbo:provider标签提供了服务提供者缺省值配置
         if (provider != null) {
             if (application == null) {
                 application = provider.getApplication();

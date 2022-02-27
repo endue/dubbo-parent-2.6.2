@@ -29,7 +29,7 @@ import java.util.Arrays;
 
 /**
  * ProviderConfig
- *
+ * 当前类为 <dubbo:service> 和 <dubbo:protocol> 标签的缺省值设置
  * @export
  * @see com.alibaba.dubbo.config.ProtocolConfig
  * @see com.alibaba.dubbo.config.ServiceConfig
