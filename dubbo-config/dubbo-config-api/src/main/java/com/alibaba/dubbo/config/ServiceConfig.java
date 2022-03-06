@@ -98,6 +98,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private String interfaceName;
     /**
      * 暴露的接口全限定名
+     * 如果是泛型化接口，则interfaceClass = GenericService.class
      */
     private Class<?> interfaceClass;
     // reference to interface impl
@@ -228,7 +229,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     }
 
     /**
-     * 暴露服务入口
+     * 1. 暴露服务入口
      */
     public synchronized void export() {
         if (provider != null) {
@@ -255,6 +256,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
     }
 
+    /**
+     * 2. 执行服务暴露操作
+     */
     protected synchronized void doExport() {
         if (unexported) {
             throw new IllegalStateException("Already unexported!");
@@ -266,10 +270,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (interfaceName == null || interfaceName.length() == 0) {
             throw new IllegalStateException("<dubbo:service interface=\"\" /> interface not allow null!");
         }
-        // 检查provider是否为null，如果是则创建一个并尝试读取系统设置或配置文件中的值
+        // 1. 校验provider是否为null，如果是则新建并尝试读取系统设置或配置文件中的值
         checkDefault();
-        // 把provider中的application，module，registries，monitor，protocols赋值给SerivceConfig属性
-        // 从这里有我可以看出dubbo:provider标签提供了服务提供者缺省值配置
+        // 2. 校验<dubbo:service>是否绑定<dubbo:xxx>相关标签，也就是ServiceBean是否配置了application、module、registries、monitor、protocols相关属性
+        // 已配置则不作任何操作
+        // 未配置则将provider中的application，module，registries，monitor，protocols设置到SerivceConfig属性中(所以<dubbo:provider>标签提供了<dubbo:service>缺省值配置)
         if (provider != null) {
             if (application == null) {
                 application = provider.getApplication();
@@ -303,7 +308,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 monitor = application.getMonitor();
             }
         }
-        // 检查接口实现类的bean对象ref是否为GenericService类型，如果是则表示是泛型化实现
+        // 3. 检查接口实现类的Bean对象ref是否为GenericService类型，如果是则表示是泛型化实现
         if (ref instanceof GenericService) {
             interfaceClass = GenericService.class;
             if (StringUtils.isEmpty(generic)) {
@@ -316,13 +321,13 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
-            // 校验dubbo:method标签中的方法是否在接口中
+            // 3.1 校验dubbo:method标签中的方法是否在接口中
             checkInterfaceAndMethods(interfaceClass, methods);
-            // 校验实现类是否是接口子类
+            // 3.2 校验实现类是否是接口子类
             checkRef();
             generic = Boolean.FALSE.toString();
         }
-        // 本地存根,什么是本地存根参考官网即可，local机制已经废弃，被stub属性所替换
+        // 4. 本地存根,什么是本地存根参考官网即可，local机制已经废弃，被stub属性所替换
         if (local != null) {
             if ("true".equals(local)) {
                 local = interfaceName + "Local";
@@ -351,19 +356,19 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 throw new IllegalStateException("The stub implementation class " + stubClass.getName() + " not implement interface " + interfaceName);
             }
         }
-        // 对ServiceBean的application、registry、protocol进行校验
-        // 如果为空则从相关地方加载默认属性
+        // 5. 对ServiceBean的application、registry、protocol进行校验，如果为空则新建并尝试读取系统设置或配置文件中的值
         checkApplication();
         checkRegistry();
         checkProtocol();
+        // 6. 对ServiceBean中的属性替换为系统设置或配置文件中的值
         appendProperties(this);
         checkStubAndMock(interfaceClass);
         if (path == null || path.length() == 0) {
             path = interfaceName;
         }
-        // 暴露服务
+        // 7. 进行服务暴露操作
         doExportUrls();
-        // 构造一个ProviderModel并注册到ApplicationModel中
+        // 8. 构造一个ProviderModel并注册到ApplicationModel中
         ProviderModel providerModel = new ProviderModel(getUniqueServiceName(), this, ref);
         ApplicationModel.initProviderModel(getUniqueServiceName(), providerModel);
     }
@@ -401,11 +406,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     }
 
     /**
-     * 进行服务的暴露
+     * 3. 进行服务暴露操作
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls() {
-        // 获取注册中心的URL对象
+        // 1. 基于注册中心构建URL对象
         List<URL> registryURLs = loadRegistries(true);
         // 遍历协议，根据协议向每一个注册中心注册
         for (ProtocolConfig protocolConfig : protocols) {
@@ -414,7 +419,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     }
 
     /**
-     * 根据协议注册URL
+     * 4. 根据协议注册URL
      * @param protocolConfig
      * @param registryURLs
      */
@@ -432,6 +437,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (ConfigUtils.getPid() > 0) {
             map.put(Constants.PID_KEY, String.valueOf(ConfigUtils.getPid()));
         }
+        // 添加配置到map中
         appendParameters(map, application);
         appendParameters(map, module);
         appendParameters(map, provider, Constants.DEFAULT_KEY);
@@ -940,6 +946,10 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         this.protocols = convertProviderToProtocol(providers);
     }
 
+    /**
+     * [group]/interfaceName[:version]
+     * @return
+     */
     @Parameter(excluded = true)
     public String getUniqueServiceName() {
         StringBuilder buf = new StringBuilder();

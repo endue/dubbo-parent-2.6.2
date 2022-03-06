@@ -99,7 +99,7 @@ public abstract class AbstractConfig implements Serializable {
     }
 
     /**
-     * 为参数config中的相关属性设置值
+     * 为参数的属性设置值
      * 加载顺序：System.getProperty --> dubbo.properties.file --> dubbo.properties
      * @param config
      */
@@ -107,34 +107,33 @@ public abstract class AbstractConfig implements Serializable {
         if (config == null) {
             return;
         }
-        // 组装前缀，可以认为是某个标签。如config为com.alibaba.dubbo.config.ProviderConfig，则结果为dubbo.provider
+        // 1. 组装前缀，可以认为是某个标签。如config为com.alibaba.dubbo.config.ProviderConfig，则结果为dubbo.provider.
         String prefix = "dubbo." + getTagName(config.getClass()) + ".";
-
+        // 2. 获取参数类中的所有公有方法并遍历
         Method[] methods = config.getClass().getMethods();
         for (Method method : methods) {
             try {
                 String name = method.getName();
                 if (name.length() > 3 && name.startsWith("set") && Modifier.isPublic(method.getModifiers())
                         && method.getParameterTypes().length == 1 && isPrimitive(method.getParameterTypes()[0])) {
-                    // 从set方法中截取属性名称并转换为配置名称
-                    // 如：name为setPort，则property为port、name为setUserName，则property为user.name
+                    // 从set方法中截取属性名称并转换为配置名称，如：name为setPort则property为port、name为setUserName则property为user.name
                     String property = StringUtils.camelToSplitName(name.substring(3, 4).toLowerCase() + name.substring(4), ".");
 
-                    /*---------------1. 从系统属性加载对应属性值---------------*/
+                    /*---------------A. 从系统属性加载对应属性值---------------*/
                     String value = null;
                     if (config.getId() != null && config.getId().length() > 0) {
-                        // 根据参数config组装配置名称：dubbo.provider.xx.属性名称，xx表示配置的id
+                        // 组装属性的配置名称：dubbo.provider.xx.属性名称，xx表示配置的id
                         String pn = prefix + config.getId() + "." + property;
-                        // 从系统属性中加载参数值
+                        // 从系统属性中加载属性的配置值
                         value = System.getProperty(pn);
                         if (!StringUtils.isBlank(value)) {
                             logger.info("Use System Property " + pn + " to config dubbo");
                         }
                     }
                     if (value == null || value.length() == 0) {
-                        // 根据参数config组装配置名称：dubbo.provider.属性名称
+                        // 组装属性的配置名称：dubbo.provider.属性名称
                         String pn = prefix + property;
-                        // 从系统属性中加载属性值
+                        // 从系统属性中加载属性的配置值
                         value = System.getProperty(pn);
                         if (!StringUtils.isBlank(value)) {
                             logger.info("Use System Property " + pn + " to config dubbo");
@@ -155,7 +154,7 @@ public abstract class AbstractConfig implements Serializable {
                         }
                         if (getter != null) {
                             if (getter.invoke(config, new Object[0]) == null) {
-                                /*---------------2. 从配置文件中加载对应属性值，配置文件顺序dubbo.properties.file -> dubbo.properties---------------*/
+                                /*---------------B. 从配置文件中加载对应属性值，配置文件顺序dubbo.properties.file -> dubbo.properties---------------*/
                                 if (config.getId() != null && config.getId().length() > 0) {
                                     value = ConfigUtils.getProperty(prefix + config.getId() + "." + property);
                                 }
@@ -184,16 +183,16 @@ public abstract class AbstractConfig implements Serializable {
     }
 
     private static String getTagName(Class<?> cls) {
-        // 获取参数cls表示的类名称
-        // 如cls为com.alibaba.dubbo.config.ProviderConfig，则结果为ProviderConfig
+        // 1. 获取参数cls表示的类名称，如：cls为com.alibaba.dubbo.config.ProviderConfig，则结果为ProviderConfig
         String tag = cls.getSimpleName();
-        // 如果以指定名称结尾，则截取指定名称前面的字符
+        // 2. 如果以指定字符串结尾，则截取指定名称前面的字符，如：tag为ProviderConfig，则结果为provider
         for (String suffix : SUFFIXES) {
             if (tag.endsWith(suffix)) {
                 tag = tag.substring(0, tag.length() - suffix.length());
                 break;
             }
         }
+        // 3. 非指定字符串结尾，直接全体转小写
         tag = tag.toLowerCase();
         return tag;
     }
@@ -202,6 +201,12 @@ public abstract class AbstractConfig implements Serializable {
         appendParameters(parameters, config, null);
     }
 
+    /**
+     * 解析config中的相关属性添加到parameters中
+     * @param parameters
+     * @param config
+     * @param prefix
+     */
     @SuppressWarnings("unchecked")
     protected static void appendParameters(Map<String, String> parameters, Object config, String prefix) {
         if (config == null) {
@@ -211,15 +216,19 @@ public abstract class AbstractConfig implements Serializable {
         for (Method method : methods) {
             try {
                 String name = method.getName();
+                // 1. 获取get()或is()方法
                 if ((name.startsWith("get") || name.startsWith("is"))
                         && !"getClass".equals(name)
                         && Modifier.isPublic(method.getModifiers())
                         && method.getParameterTypes().length == 0
                         && isPrimitive(method.getReturnType())) {
+                    // 1.1 方法上有Parameter注解
                     Parameter parameter = method.getAnnotation(Parameter.class);
                     if (method.getReturnType() == Object.class || parameter != null && parameter.excluded()) {
                         continue;
                     }
+                    // 1.2 从get方法中截取属性名称并转换为配置名称，如：name为setPort则property为port、name为setUserName则property为user.name
+                    // 最后解析为要存到参数parameters中的key
                     int i = name.startsWith("get") ? 3 : 2;
                     String prop = StringUtils.camelToSplitName(name.substring(i, i + 1).toLowerCase() + name.substring(i + 1), ".");
                     String key;
@@ -228,12 +237,15 @@ public abstract class AbstractConfig implements Serializable {
                     } else {
                         key = prop;
                     }
+                    // 1.3 获取上述key在参数config中的值
                     Object value = method.invoke(config, new Object[0]);
                     String str = String.valueOf(value).trim();
                     if (value != null && str.length() > 0) {
+                        // 1.3.1 参数需要转义则转义
                         if (parameter != null && parameter.escaped()) {
                             str = URL.encode(str);
                         }
+                        // 1.3.2
                         if (parameter != null && parameter.append()) {
                             String pre = (String) parameters.get(Constants.DEFAULT_KEY + "." + key);
                             if (pre != null && pre.length() > 0) {
