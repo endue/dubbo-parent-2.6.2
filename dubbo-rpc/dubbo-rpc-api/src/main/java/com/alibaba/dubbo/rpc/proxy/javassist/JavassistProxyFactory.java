@@ -46,7 +46,7 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
-        // 如果接口实现类中有$符合，则使用接口类型，否则使用实现类的类型
+        // 如果接口实现类中有$符号，则使用接口类型，否则使用实现类的类型
         // 这个Wrapper会根据你提供的这个类型生成一个获取你这个类中成员变量的方法，设置成员变量的方法，执行你这个类中方法的方法
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
         /**

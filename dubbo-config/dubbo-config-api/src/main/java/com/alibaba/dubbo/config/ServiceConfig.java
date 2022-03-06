@@ -613,7 +613,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                     .setPort(0);
             // 将实现类的class并保存到全局ThreadLocal中
             ServiceClassHolder.getInstance().pushServiceClass(getServiceClass(ref));
-            // 如果URL中的protocol=injvm则就是InjvmProtocol，依次类推
+            // proxyFactory在初始化时获取的是自适应的实现类，由于没有实现类被@Adaptive注解标注所以会自动拼接代码生成实现类。执行对应方法时在从URL中获取实现类的名称，实现类的名称在方法的@Adaptive注解中标注，如果URL中也没有方法@Adaptive注解中标注的实现类的名称，则取proxyFactory上@SPI注解中标注的实现类，这里最终是JavassistProxyFactory
+            // protocol在上面被设置为injvm，所以这里最终执行的是InjvmProtocol#export()方法
             Exporter<?> exporter = protocol.export(
                     proxyFactory.getInvoker(ref, (Class) interfaceClass, local));
 
