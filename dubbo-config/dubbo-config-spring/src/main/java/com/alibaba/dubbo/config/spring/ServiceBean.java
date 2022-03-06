@@ -149,17 +149,21 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
     }
 
     /**
-     * 处理 <dubbo:service />标签
+     * 1. 在初始化bean的时候会执行该方法
      * @throws Exception
      */
     @Override
     @SuppressWarnings({"unchecked", "deprecation"})
     public void afterPropertiesSet() throws Exception {
-        // 1. 判断标签的provider属性
-        if (getProvider() == null) {
+        // 1. 判断<dubbo:service>是否绑定<dubbo:provider>标签，也就是解析ServiceBean是否配置了provider属性
+        if (getProvider() == null) {// 未绑定
+            // 1.1 在spring上下文中查找<dubbo:provider>配置
             Map<String, ProviderConfig> providerConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ProviderConfig.class, false, false);
+            // 1.2 不存在<dubbo:provider>标签则不进行任何处理，存在继续执行
             if (providerConfigMap != null && providerConfigMap.size() > 0) {
+                // 1.2.1 在spring上下文中查找<dubbo:protocol>配置
                 Map<String, ProtocolConfig> protocolConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ProtocolConfig.class, false, false);
+                // <dubbo:protocol>标签不存在但<dubbo:provider>标签存在，也就是旧版本的<dubbo:protocol>标签配置需要从<dubbo:provider>标签配置中提取
                 if ((protocolConfigMap == null || protocolConfigMap.size() == 0)
                         && providerConfigMap.size() > 1) { // backward compatibility
                     List<ProviderConfig> providerConfigs = new ArrayList<ProviderConfig>();
@@ -168,9 +172,11 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                             providerConfigs.add(config);
                         }
                     }
+                    // 为<dubbo:service>对应的provider属性，设置protocol相关配置
                     if (!providerConfigs.isEmpty()) {
                         setProviders(providerConfigs);
                     }
+                // <dubbo:protocol>标签存在，找出默认的设置到provider属性中
                 } else {
                     ProviderConfig providerConfig = null;
                     for (ProviderConfig config : providerConfigMap.values()) {
@@ -187,13 +193,11 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 }
             }
         }
-        // 2. 判断标签的application属性
+        // 2. 判断<dubbo:service>是否绑定<dubbo:application>标签，也就是解析ServiceBean是否配置了application属性
         if (getApplication() == null
                 && (getProvider() == null || getProvider().getApplication() == null)) {
-            // 未配置application属性，从spring的BeanFactory中获取
             Map<String, ApplicationConfig> applicationConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ApplicationConfig.class, false, false);
             if (applicationConfigMap != null && applicationConfigMap.size() > 0) {
-                // 默认application只能配置一个，多个将抛出异常
                 ApplicationConfig applicationConfig = null;
                 for (ApplicationConfig config : applicationConfigMap.values()) {
                     if (config.isDefault() == null || config.isDefault().booleanValue()) {
@@ -208,14 +212,12 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 }
             }
         }
-        // 3. 判断标签的module属性(模块信息配置)
+        // 3. 判断<dubbo:service>是否绑定<dubbo:module>标签，也就是解析ServiceBean是否配置了module属性
         if (getModule() == null
                 && (getProvider() == null || getProvider().getModule() == null)) {
-            // 未配置module属性，从spring的BeanFactory中获取
             Map<String, ModuleConfig> moduleConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ModuleConfig.class, false, false);
             if (moduleConfigMap != null && moduleConfigMap.size() > 0) {
                 ModuleConfig moduleConfig = null;
-                // 默认module只能配置一个，多个将抛出异常
                 for (ModuleConfig config : moduleConfigMap.values()) {
                     if (config.isDefault() == null || config.isDefault().booleanValue()) {
                         if (moduleConfig != null) {
@@ -229,7 +231,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 }
             }
         }
-        // 4. 注册中心配置
+        // 4. 判断<dubbo:service>是否绑定<dubbo:registry>标签，也就是解析ServiceBean是否配置了registry属性
         if ((getRegistries() == null || getRegistries().isEmpty())
                 && (getProvider() == null || getProvider().getRegistries() == null || getProvider().getRegistries().isEmpty())
                 && (getApplication() == null || getApplication().getRegistries() == null || getApplication().getRegistries().isEmpty())) {
@@ -246,7 +248,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 }
             }
         }
-        // 5. 监控中心配置
+        // 5. 判断<dubbo:service>是否绑定<dubbo:monitor>标签，也就是解析ServiceBean是否配置了monitor属性
         if (getMonitor() == null
                 && (getProvider() == null || getProvider().getMonitor() == null)
                 && (getApplication() == null || getApplication().getMonitor() == null)) {
@@ -266,7 +268,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 }
             }
         }
-        // 6. 服务提供者协议配置
+        // 6. 判断<dubbo:service>是否绑定<dubbo:protocol>标签，也就是解析ServiceBean是否配置了protocol属性
         if ((getProtocols() == null || getProtocols().isEmpty())
                 && (getProvider() == null || getProvider().getProtocols() == null || getProvider().getProtocols().isEmpty())) {
             Map<String, ProtocolConfig> protocolConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ProtocolConfig.class, false, false);
@@ -282,7 +284,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 }
             }
         }
-        // 7. 服务路径
+        // 7. 服务路径(默认为服务接口的全路径名)
         if (getPath() == null || getPath().length() == 0) {
             if (beanName != null && beanName.length() > 0
                     && getInterface() != null && getInterface().length() > 0
