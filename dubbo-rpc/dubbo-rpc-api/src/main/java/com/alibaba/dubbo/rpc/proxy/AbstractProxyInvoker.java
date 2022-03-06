@@ -30,10 +30,19 @@ import java.lang.reflect.InvocationTargetException;
  */
 public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
 
+    /**
+     * 实现类
+     */
     private final T proxy;
 
+    /**
+     * 接口
+     */
     private final Class<T> type;
 
+    /**
+     *
+     */
     private final URL url;
 
     public AbstractProxyInvoker(T proxy, Class<T> type, URL url) {

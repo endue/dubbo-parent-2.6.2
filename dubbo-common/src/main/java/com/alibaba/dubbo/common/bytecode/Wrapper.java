@@ -118,10 +118,10 @@ public abstract class Wrapper {
     private static Wrapper makeWrapper(Class<?> c) {
         if (c.isPrimitive())
             throw new IllegalArgumentException("Can not create wrapper for primitive type: " + c);
-
+        // 1. 获取参数c的接口全限定名名称和加载器
         String name = c.getName();
         ClassLoader cl = ClassHelper.getClassLoader(c);
-
+        // 2. 开始生产包装类中的三个方法：设置对象属性的值、获取对象属性的值、执行对象的某方法
         StringBuilder c1 = new StringBuilder("public void setPropertyValue(Object o, String n, Object v){ ");
         StringBuilder c2 = new StringBuilder("public Object getPropertyValue(Object o, String n){ ");
         StringBuilder c3 = new StringBuilder("public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws " + InvocationTargetException.class.getName() + "{ ");
@@ -130,15 +130,17 @@ public abstract class Wrapper {
         c2.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
         c3.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
 
-        Map<String, Class<?>> pts = new HashMap<String, Class<?>>(); // <property name, property types>
+        Map<String, Class<?>> pts = new HashMap<String, Class<?>>(); // <property name, property types> 记录<属性名称, 属性类型>
         Map<String, Method> ms = new LinkedHashMap<String, Method>(); // <method desc, Method instance>
         List<String> mns = new ArrayList<String>(); // method names.
         List<String> dmns = new ArrayList<String>(); // declaring method names.
 
         // get all public field.
+        // 3. 获取所有public修饰的属性.最终为每个属性构建一个equals方法，如果相等，则设置属性的值
         for (Field f : c.getFields()) {
             String fn = f.getName();
             Class<?> ft = f.getType();
+            // 属性被statis或transient修饰，则忽略
             if (Modifier.isStatic(f.getModifiers()) || Modifier.isTransient(f.getModifiers()))
                 continue;
 
