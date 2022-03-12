@@ -588,8 +588,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         // 构建远程调用的实现类
                         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(Constants.EXPORT_KEY, url.toFullString()));
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
-                        // Protocol这个扩展点export方法上是有@Adaptive注解的，然后没有value，根据自适应的规则，没有value则value=类名小写
-                        // 此时就从URL中获取protocol对应的值，这里是registry
+                        // Protocol这个扩展点export方法上是有@Adaptive注解的，然后没有value，根据自适应的规则，没有value则取@SPI中的value
+                        // 此时就从URL中获取protocol对应的值，没有则取SPI注解中的值作为扩展接口的实现类的名称DubboProtocol
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
                         exporters.add(exporter);
                     }
