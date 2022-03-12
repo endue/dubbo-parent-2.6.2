@@ -232,6 +232,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      * 1. 暴露服务入口
      */
     public synchronized void export() {
+        // 1. <dubbo:provider>是<dubbo:service>的缺省值配置
         if (provider != null) {
             if (export == null) {
                 export = provider.getExport();
@@ -240,10 +241,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 delay = provider.getDelay();
             }
         }
+        // 2. 不暴露服务
         if (export != null && !export) {
             return;
         }
-        // 延迟暴露服务配置 <dubbo:service interface="xxx" ref="yyy" delay="0">
+        // 3. 延迟暴露服务
         if (delay != null && delay > 0) {
             delayExportExecutor.schedule(new Runnable() {
                 @Override
@@ -251,6 +253,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                     doExport();
                 }
             }, delay, TimeUnit.MILLISECONDS);
+        // 4. 立即暴露服务
         } else {
             doExport();
         }
@@ -321,9 +324,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
-            // 3.1 校验dubbo:method标签中的方法是否在接口中
+            // 3.1 校验<dubbo:method>标签中的方法是否在接口interfaceClass中
             checkInterfaceAndMethods(interfaceClass, methods);
-            // 3.2 校验实现类是否是接口子类
+            // 3.2 校验ref是否是interfaceClass实现类
             checkRef();
             generic = Boolean.FALSE.toString();
         }
@@ -373,6 +376,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         ApplicationModel.initProviderModel(getUniqueServiceName(), providerModel);
     }
 
+    /**
+     * 校验当前<dubbo:service/>标签中的ref是否是对应的interfaceClass实现类
+     */
     private void checkRef() {
         // reference should not be null, and is the implementation of the given interface
         if (ref == null) {
